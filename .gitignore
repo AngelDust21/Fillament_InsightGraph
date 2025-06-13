@@ -67,7 +67,7 @@ Thumbs.db
 *.log
 *.tmp
 exports/*.xlsx
-exports/*.csv
+# exports/*.csv  # Commented out to allow master_calculations.csv
 data/*.bak
 
 # Jupyter Notebook
