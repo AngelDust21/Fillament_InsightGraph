@@ -1,0 +1,233 @@
+===============================================================
+UITLEG BIJ COST_ENGINE.PY - KOSTENBEREKENING ENGINE
+===============================================================
+
+Dit document analyseert de kostenberekeningslogica die het hart vormt
+van de H2D Prijs Calculator, inclusief de economische principes,
+formules en praktische overwegingen achter elke berekening.
+
+-----------------------------------------------------------------
+ECONOMISCHE FILOSOFIE: VOLLEDIGE KOSTENTOEREKENING
+-----------------------------------------------------------------
+
+De cost_engine implementeert het principe van "Full Cost Accounting":
+
+DIRECTE KOSTEN:
+- Materiaal: De fysieke grondstoffen
+- Energie: Elektriciteit voor de printer
+
+INDIRECTE KOSTEN:
+- Arbeid: Menselijke monitoring tijd
+- Onderhoud: Slijtage en reparaties
+- Overhead: Vaste kosten verdeeld over productie
+
+Deze holistische benadering garandeert:
+- Geen verborgen verliezen
+- Realistische prijsstelling
+- Duurzame bedrijfsvoering
+
+-----------------------------------------------------------------
+DATACLASS PATTERN: IMMUTABLE KOSTSTRUCTUUR
+-----------------------------------------------------------------
+
+```python
+@dataclass
+class CostBreakdown:
+    material_cost: float
+    variable_cost: float
+    surcharge_abrasive: float
+    total_cost: float
+```
+
+WAAROM EEN DATACLASS?
+1. TRANSPARANTIE: Alle kostencomponenten expliciet
+2. IMMUTABILITY: Berekende kosten kunnen niet per ongeluk wijzigen
+3. TYPE SAFETY: IDE en type checkers helpen fouten voorkomen
+4. SERIALIZATION: Makkelijk om te zetten naar JSON/CSV
+
+Het to_dict() method faciliteert export en logging.
+
+-----------------------------------------------------------------
+MATERIAALKOSTEN: GEWICHT × PRIJS FORMULE
+-----------------------------------------------------------------
+
+```python
+price_per_gram = get_price(material)
+material_cost = price_per_gram * weight_g
+```
+
+OVERWEGINGEN:
+- Lineaire prijsstelling (geen volume kortingen in basis)
+- Prijs per gram voor nauwkeurigheid bij kleine prints
+- Material validatie via get_price() functie
+
+PRAKTIJKVOORBEELD:
+- 50g PLA Basic @ €0.01399/g = €0.70 materiaalkosten
+- Dit is de absolute minimumprijs zonder winst
+
+-----------------------------------------------------------------
+VARIABELE KOSTEN: TIJD-GEBASEERDE TOEREKENING
+-----------------------------------------------------------------
+
+```python
+variable_cost = VARIABLE_COST_PER_HOUR_EXCL_MATERIAL * print_hours
+```
+
+SAMENSTELLING (per uur):
+1. ENERGIE: €0.315
+   - 1.05 kW printer × €0.30/kWh
+   - Gemiddeld verbruik, niet piek
+
+2. ONDERHOUD: €0.0765
+   - Gebaseerd op €153 per 2000 uur
+   - Lineaire afschrijving aangenomen
+
+3. MONITORING: €2.35
+   - €23.50/uur arbeid × 10% aanwezigheid
+   - Passieve monitoring, niet actief werk
+
+4. OVERHEAD: €3.33
+   - €6669/jaar ÷ 2000 productie-uren
+   - Huur, verzekering, software, etc.
+
+TOTAAL: €6.07 per uur (excl. materiaal)
+
+-----------------------------------------------------------------
+AUTO PRINTTIJD BEREKENING: EMPIRISCHE BENADERING
+-----------------------------------------------------------------
+
+```python
+def _calc_print_hours_auto(weight_g: float) -> float:
+    return weight_g * AUTO_TIME_PER_GRAM_H  # 0.04 u/g
+```
+
+RATIONALE:
+- Gebaseerd op gemiddelde printsnelheid
+- 25 gram per uur = 0.04 uur per gram
+- Houdt rekening met:
+  * Layer tijd
+  * Travel moves
+  * Retracties
+
+BEPERKINGEN:
+- Geen rekening met complexiteit
+- Geen hoogte factor
+- Gemiddelde infill aangenomen
+
+Voor nauwkeurigere tijden: gebruik slicer estimate.
+
+-----------------------------------------------------------------
+ABRASIEF MATERIAAL TOESLAG: VERSNELDE SLIJTAGE
+-----------------------------------------------------------------
+
+```python
+surcharge_abrasive = ABRASIVE_SURCHARGE_PER_HOUR * print_hours if abrasive else 0.0
+```
+
+WAAROM €0.50/UUR EXTRA?
+- Nozzle slijtage: 5-10x sneller
+- Hardened steel nozzles duurder
+- Extruder onderdelen extra belasting
+- Verhoogd risico op storingen
+
+MATERIALEN DIE ABRASIEF ZIJN:
+- Carbon Fiber (CF) gevuld
+- Glass Fiber (GF) gevuld  
+- Metaal gevulde filamenten
+- Sommige technische plastics
+
+-----------------------------------------------------------------
+TOTALE KOSTEN AGGREGATIE: VOLLEDIGE TRANSPARANTIE
+-----------------------------------------------------------------
+
+```python
+total = material_cost + variable_cost + surcharge_abrasive
+```
+
+GEEN VERBORGEN KOSTEN:
+- Alle componenten expliciet berekend
+- Optionele toeslagen duidelijk gescheiden
+- Basis voor eerlijke prijsstelling
+
+VOORBEELD BEREKENING (100g PLA, 4 uur):
+- Materiaal: 100g × €0.01399 = €1.40
+- Variabel: 4u × €6.07 = €24.28
+- Abrasief: €0.00 (niet van toepassing)
+- TOTAAL: €25.68 kostprijs
+
+-----------------------------------------------------------------
+PRAKTISCHE TOEPASSINGEN: BESLUITVORMING
+-----------------------------------------------------------------
+
+De CostBreakdown output ondersteunt:
+
+1. MINIMUM VERKOOPPRIJS:
+   - Nooit onder total_cost verkopen
+   - Break-even point identificatie
+
+2. MARGE BEREKENING:
+   - Verschillende marges op componenten
+   - Material markup vs. tijd markup
+
+3. EFFICIËNTIE ANALYSE:
+   - Hoge material_cost → materiaal optimalisatie
+   - Hoge variable_cost → sneller printen onderzoeken
+
+4. KLANT COMMUNICATIE:
+   - Transparante kostenstructuur tonen
+   - Rechtvaardigen van prijzen
+
+-----------------------------------------------------------------
+TOEKOMSTIGE VERBETERINGEN: GEAVANCEERDE MODELLEN
+-----------------------------------------------------------------
+
+Mogelijke uitbreidingen van het kostenmodel:
+
+1. NIET-LINEAIRE TIJDBEREKENING:
+   ```python
+   # Hoogte factor
+   time = base_time * (1 + height_factor * ln(height))
+   ```
+
+2. VOLUME KORTINGEN:
+   ```python
+   if weight_g > 500:
+       material_cost *= 0.95  # 5% korting
+   ```
+
+3. COMPLEXITEIT FACTOR:
+   ```python
+   # Gebaseerd op STL analyse
+   complexity_multiplier = analyze_stl_complexity(file)
+   ```
+
+4. REAL-TIME ENERGIE PRIJZEN:
+   ```python
+   current_price = get_electricity_spot_price()
+   ```
+
+-----------------------------------------------------------------
+CONCLUSIE: PROFESSIONELE KOSTPRIJSBEREKENING
+-----------------------------------------------------------------
+
+Deze cost_engine demonstreert:
+
+ECONOMISCH:
+- Volledige kostentoerekening
+- Activity Based Costing principes
+- Transparante prijsopbouw
+
+TECHNISCH:
+- Clean code architectuur
+- Type-safe implementatie
+- Uitbreidbare structuur
+
+PRAKTISCH:
+- Direct bruikbare resultaten
+- Flexibele parameters
+- Business-ready output
+
+Het resultaat is een betrouwbare basis voor winstgevende
+3D-print dienstverlening, waarbij alle kosten eerlijk worden
+toegerekend en geen verborgen verliezen ontstaan.
+=============================================================== 

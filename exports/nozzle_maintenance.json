@@ -1,0 +1,15 @@
+{
+  "current_nozzle": {
+    "type": "Hardened Steel",
+    "install_date": "2025-06-10T13:18:47.405341",
+    "accumulated_hours": 190.75,
+    "material_history": {
+      "PA12-CF": 62.5,
+      "PETG-CF": 45.0,
+      "TPU 95A": 17.0,
+      "PA-CF": 60.0,
+      "ASA": 6.25
+    }
+  },
+  "history": []
+}

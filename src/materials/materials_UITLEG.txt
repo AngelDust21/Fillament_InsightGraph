@@ -1,0 +1,288 @@
+===============================================================
+UITLEG BIJ MATERIALS.PY - MATERIAAL DATABASE EN BEHEER
+===============================================================
+
+Dit document analyseert het materiaalbeheer systeem van de H2D Calculator,
+inclusief database design patterns, uitbreidbaarheid strategieën en de
+filosofie achter gestructureerd materiaalgegevensbeheer.
+
+-----------------------------------------------------------------
+DATABASE FILOSOFIE: IN-MEMORY DICTIONARY ALS DATABASE
+-----------------------------------------------------------------
+
+De materials module gebruikt een Python dictionary als database:
+
+```python
+_MATERIALS: Dict[str, Material] = {
+    "PLA Basic": Material("PLA Basic", 13.99),
+    "PETG-CF": Material("PETG-CF", 36.29),
+    ...
+}
+```
+
+WAAROM GEEN ECHTE DATABASE?
+1. SIMPLICITEIT: Geen database setup nodig
+2. PERFORMANCE: In-memory is ultranel
+3. VERSIONERING: Materialen in code = version control
+4. DEPLOYMENT: Geen externe dependencies
+
+WANNEER WEL DATABASE?
+- Bij > 100 materialen
+- Wanneer non-technici moeten wijzigen
+- Bij multi-user scenarios
+
+-----------------------------------------------------------------
+DATACLASS PATTERN: IMMUTABLE MATERIAL OBJECTS
+-----------------------------------------------------------------
+
+```python
+@dataclass(frozen=True)
+class Material:
+    name: str
+    price_per_kg: float  # € per kilogram
+    
+    @property
+    def price_per_gram(self) -> float:
+        return self.price_per_kg / 1000
+```
+
+DESIGN BESLISSINGEN:
+
+FROZEN=TRUE:
+- Materiaal eigenschappen wijzigen niet tijdens runtime
+- Voorkomt accidentele mutatie
+- Thread-safe by design
+
+PRICE_PER_KG:
+- Industrie standaard eenheid
+- Leveranciers geven prijzen per kg
+- Conversie naar gram voor precisie
+
+PROPERTY DECORATOR:
+- Berekende waarde, niet opgeslagen
+- Altijd consistent met kg prijs
+- Geen synchronisatie issues
+
+-----------------------------------------------------------------
+MATERIAAL SELECTIE: MARKT REPRESENTATIE
+-----------------------------------------------------------------
+
+De geselecteerde materialen vertegenwoordigen de markt:
+
+BASIS MATERIALEN:
+- PLA Basic (€13.99/kg): Entry level, meest gebruikt
+- PETG Basic (€19.99/kg): Sterker alternatief
+- ABS (€19.99/kg): Traditioneel engineering plastic
+
+SPECIALTY MATERIALEN:
+- PLA Matte (€19.99/kg): Esthetisch upgrade
+- ASA (€24.99/kg): UV-bestendig voor buiten
+- PC (€49.99/kg): High-temp toepassingen
+
+COMPOSIET MATERIALEN:
+- PETG-CF (€36.29/kg): Carbon fiber versterkt
+- PLA-CF (€29.99/kg): Goedkoper CF alternatief
+- PETG-GF (€39.99/kg): Glass fiber voor stijfheid
+- PA-CF (€79.99/kg): Premium engineering
+
+Deze selectie dekt 90% van typische 3D print behoeften.
+
+-----------------------------------------------------------------
+PRIJS STRATEGIE: BULK INKOOP PRIJZEN
+-----------------------------------------------------------------
+
+De prijzen zijn gebaseerd op "≥6 rollen" bulk prijzen:
+
+RATIONALE:
+- Professionele service koopt bulk
+- Betere marges mogelijk
+- Stabielere prijzen
+
+PRICE POINTS ANALYSE:
+- €13.99 - €19.99: Commodity range (PLA, PETG, ABS)
+- €24.99 - €39.99: Specialty range (ASA, CF composites)
+- €49.99 - €79.99: Premium range (PC, PA-CF)
+
+Deze spreiding ondersteunt diverse klantbehoeften.
+
+-----------------------------------------------------------------
+API DESIGN: GEBRUIKSVRIENDELIJKE INTERFACE
+-----------------------------------------------------------------
+
+De module biedt drie hoofdfuncties:
+
+1. list_materials() -> Dict[str, Material]
+   - Retourneert kopie (niet origineel)
+   - Voorkomt externe mutatie
+   - Ondersteunt iteration
+
+2. get_material(name: str) -> Optional[Material]
+   - Null-safe lookup
+   - Strip whitespace automatisch
+   - Type-safe return
+
+3. get_price(material: str) -> float
+   - Direct prijs per gram
+   - Raises KeyError indien onbekend
+   - Backward compatible API
+
+GEBRUIK PATRONEN:
+```python
+# Lijst alle materialen
+for name, mat in list_materials().items():
+    print(f"{name}: €{mat.price_per_kg}/kg")
+
+# Veilige lookup
+if material := get_material("PLA Basic"):
+    cost = material.price_per_gram * weight
+
+# Direct prijs (legacy)
+price = get_price("PETG-CF")  # Kan exception gooien
+```
+
+-----------------------------------------------------------------
+ERROR HANDLING: GEBRUIKSVRIENDELIJKE FEEDBACK
+-----------------------------------------------------------------
+
+De get_price functie geeft duidelijke errors:
+
+```python
+if key not in _MATERIALS:
+    raise KeyError(
+        f"Onbekend materiaal: {material}. "
+        f"Beschikbaar: {', '.join(_MATERIALS.keys())}"
+    )
+```
+
+FEATURES:
+- Toont exact wat fout ging
+- Lijst alle geldige opties
+- Nederlands voor eindgebruikers
+- Helpt debugging
+
+-----------------------------------------------------------------
+UITBREIDBAARHEID: NIEUWE MATERIALEN TOEVOEGEN
+-----------------------------------------------------------------
+
+Nieuw materiaal toevoegen is trivial:
+
+```python
+# In _MATERIALS dictionary:
+"TPU Flex": Material("TPU Flex", 34.99),
+```
+
+STAPPEN:
+1. Voeg regel toe aan dictionary
+2. Geen database migratie
+3. Geen schema updates
+4. Direct beschikbaar in GUI
+
+TOEKOMSTIGE UITBREIDINGEN:
+- Kleur varianten (PLA Red, PLA Blue)
+- Diameter opties (1.75mm, 2.85mm)
+- Leverancier info
+- Lead times
+- Minimum order quantities
+
+-----------------------------------------------------------------
+MATERIAAL EIGENSCHAPPEN: TOEKOMSTIGE METADATA
+-----------------------------------------------------------------
+
+Het Material dataclass kan uitgebreid worden:
+
+```python
+@dataclass(frozen=True)
+class Material:
+    name: str
+    price_per_kg: float
+    # Toekomstige velden:
+    abrasive: bool = False
+    print_temp: int = 210
+    bed_temp: int = 60
+    density: float = 1.24
+    flex_modulus: float = 2.0
+```
+
+MOGELIJKE FEATURES:
+- Auto-detectie abrasief voor toeslag
+- Temperatuur presets voor slicing
+- Gewicht estimatie via volume
+- Sterkte berekeningen
+
+-----------------------------------------------------------------
+PERFORMANCE OVERWEGINGEN: SCHAALBARE ARCHITECTUUR
+-----------------------------------------------------------------
+
+Het huidige ontwerp schaalt tot ~1000 materialen:
+
+LOOKUPS: O(1)
+- Dictionary hash-based lookup
+- Constant time ongeacht size
+
+MEMORY: ~100 bytes/materiaal
+- 1000 materialen = ~100KB
+- Negligible voor moderne systemen
+
+INITIALIZATION: O(n)
+- Eenmalig bij module import
+- Daarna geen overhead
+
+Bij grotere schaal:
+- SQLite voor 1000+ materialen
+- PostgreSQL voor multi-user
+- Redis cache voor performance
+
+-----------------------------------------------------------------
+INTEGRATIE MOGELIJKHEDEN: EXTERNE DATA BRONNEN
+-----------------------------------------------------------------
+
+Toekomstige integraties kunnen omvatten:
+
+1. LEVERANCIER APIs:
+```python
+def sync_prices_from_supplier():
+    for material in fetch_supplier_catalog():
+        _MATERIALS[material.name] = material
+```
+
+2. VOORRAAD KOPPELING:
+```python
+def get_available_materials():
+    return [m for m in _MATERIALS 
+            if inventory.get_stock(m) > 0]
+```
+
+3. HISTORISCHE PRIJZEN:
+```python
+def get_price_history(material: str) -> List[PricePoint]:
+    return price_db.query(material=material)
+```
+
+-----------------------------------------------------------------
+CONCLUSIE: PRAGMATISCH MATERIAALBEHEER
+-----------------------------------------------------------------
+
+Deze materials module demonstreert:
+
+TECHNISCH:
+- Clean code patterns
+- Type-safe implementatie
+- Efficiënte data structuren
+- Uitbreidbare architectuur
+
+PRAKTISCH:
+- Eenvoudig te gebruiken
+- Eenvoudig te onderhouden
+- Eenvoudig uit te breiden
+- Production-ready
+
+STRATEGISCH:
+- Dekt markt behoeften
+- Schaalbaar ontwerp
+- Integration-ready
+- Future-proof
+
+Het resultaat is een robuust materiaalbeheer systeem dat de
+complexiteit verbergt achter een elegante API, klaar voor zowel
+huidige als toekomstige requirements.
+=============================================================== 

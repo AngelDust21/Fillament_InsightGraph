@@ -1,0 +1,323 @@
+===============================================================
+UITLEG BIJ CLI.PY - COMMAND LINE INTERFACE ONTWERP
+===============================================================
+
+Dit document analyseert de command line interface van de H2D Calculator,
+inclusief argumentparsing, user experience design voor terminals,
+en de filosofie achter een krachtige maar toegankelijke CLI.
+
+-----------------------------------------------------------------
+CLI FILOSOFIE: FLEXIBEL EN GEBRUIKSVRIENDELIJK
+-----------------------------------------------------------------
+
+De CLI module biedt drie gebruik modi:
+
+1. VOLLEDIG COMMAND LINE:
+   python cli.py --weight 100 --material "PLA Basic" --time 240
+
+2. INTERACTIEF:
+   python cli.py
+   (vraagt om invoer)
+
+3. HYBRIDE:
+   python cli.py --weight 100
+   (vraagt alleen ontbrekende parameters)
+
+Deze flexibiliteit ondersteunt zowel automation als menselijk gebruik.
+
+-----------------------------------------------------------------
+ARGPARSE: DECLARATIEVE ARGUMENT DEFINITIE
+-----------------------------------------------------------------
+
+```python
+parser = argparse.ArgumentParser(
+    description="H2D Price Calculator - Bereken print kosten",
+    formatter_class=argparse.RawDescriptionHelpFormatter,
+    epilog=USAGE_EXAMPLES
+)
+```
+
+FORMATTER KEUZE:
+- RawDescriptionHelpFormatter behoudt formatting
+- Maakt voorbeelden in epilog leesbaarder
+- Respecteert newlines en spacing
+
+ARGUMENT GROEPEN:
+- Basis parameters (gewicht, materiaal, tijd)
+- Optionele flags (multicolor, spoed, abrasief)
+- Meta opties (--list-materials)
+
+-----------------------------------------------------------------
+PARAMETER VALIDATIE: VROEGE FOUTDETECTIE
+-----------------------------------------------------------------
+
+```python
+parser.add_argument("--weight", type=float, 
+                   help="Gewicht in gram")
+parser.add_argument("--time", type=int,
+                   help="Print tijd in minuten")
+```
+
+TYPE CONVERSIE:
+- float voor gewicht (decimalen toegestaan)
+- int voor tijd (hele minuten)
+- Automatische foutmelding bij ongeldige input
+
+HELP STRINGS:
+- Nederlands voor lokale gebruikers
+- Duidelijke eenheden vermeld
+- Geen technisch jargon
+
+-----------------------------------------------------------------
+INTERACTIEVE MODUS: GEBRUIKERSGELEIDE INVOER
+-----------------------------------------------------------------
+
+```python
+def get_interactive_input(args):
+    if not args.weight:
+        args.weight = get_float_input("Gewicht (gram): ")
+```
+
+DESIGN PRINCIPES:
+
+MINIMALE VRAGEN:
+- Vraag alleen wat ontbreekt
+- Respecteer command line argumenten
+- Geen onnodige herhaling
+
+ROBUUSTE INVOER:
+```python
+def get_float_input(prompt):
+    while True:
+        try:
+            return float(input(prompt))
+        except ValueError:
+            print("Ongeldige invoer. Probeer opnieuw.")
+```
+
+GEBRUIKSVRIENDELIJKE PROMPTS:
+- Toon eenheden in prompt
+- Nederlandse berichten
+- Onmiddellijke feedback bij fouten
+
+-----------------------------------------------------------------
+MATERIAAL SELECTIE: SMART DEFAULTS EN LISTING
+-----------------------------------------------------------------
+
+```python
+if args.list_materials:
+    display_materials()
+    sys.exit(0)
+```
+
+FEATURES:
+
+--list-materials FLAG:
+- Toont alle beschikbare materialen
+- Inclusief prijzen per kg
+- Sorted voor overzicht
+- Exit na display (workflow stop)
+
+MATERIAAL KEUZE UI:
+```python
+print("\nBeschikbare materialen:")
+for i, (name, material) in enumerate(materials.items(), 1):
+    print(f"{i:2d}. {name:<20} €{material.price_per_kg:.2f}/kg")
+```
+
+NUMMER OF NAAM:
+- Gebruiker kan nummer kiezen (sneller)
+- Of exacte naam typen (scripting)
+- Flexibele interface
+
+-----------------------------------------------------------------
+OUTPUT FORMATTING: TABULATE VOOR LEESBAARHEID
+-----------------------------------------------------------------
+
+```python
+table_data = [
+    ["Materiaal kosten", f"€{costs.material_cost:.2f}"],
+    ["Energie kosten", f"€{costs.energy_cost:.2f}"],
+    ...
+]
+print(tabulate(table_data, headers=["Component", "Kosten"], 
+               tablefmt="grid"))
+```
+
+WAAROM TABULATE?
+- Professionele ASCII tabellen
+- Automatische kolom uitlijning
+- Ondersteunt verschillende stijlen
+- Klein dependency
+
+GRID FORMAT:
+- Duidelijke cel grenzen
+- Goed leesbaar in terminals
+- Werkt met alle fonts
+
+-----------------------------------------------------------------
+ERROR HANDLING: GEBRUIKSVRIENDELIJKE FEEDBACK
+-----------------------------------------------------------------
+
+```python
+try:
+    result = engine.calculate_costs(...)
+except Exception as e:
+    print(f"Fout bij berekening: {e}")
+    return 1  # Non-zero exit code
+```
+
+EXIT CODES:
+- 0: Succes
+- 1: Algemene fout
+- 2: Gebruikersfout (ongeldige invoer)
+
+ERROR BERICHTEN:
+- Nederlands voor eindgebruikers
+- Specifieke probleem aanduiding
+- Suggesties voor oplossing waar mogelijk
+
+-----------------------------------------------------------------
+WORKFLOW OPTIMALISATIE: BATCH PROCESSING READY
+-----------------------------------------------------------------
+
+De CLI ondersteunt automation scenarios:
+
+SHELL SCRIPTING:
+```bash
+for weight in 50 100 200; do
+    python cli.py --weight $weight --material "PLA Basic" \
+                  --time 120 >> results.txt
+done
+```
+
+PIPE SUPPORT:
+- Schone output zonder interactie prompts
+- Parse-able resultaten
+- Quiet mode mogelijk
+
+CSV EXPORT (toekomst):
+```python
+if args.format == "csv":
+    print_csv_output(result)
+```
+
+-----------------------------------------------------------------
+GEBRUIKERSERVARING: PROGRESSIVE DISCLOSURE
+-----------------------------------------------------------------
+
+De interface onthult complexiteit geleidelijk:
+
+BEGINNERS:
+- python cli.py (volledig interactief)
+- Eenvoudige prompts
+- Duidelijke defaults
+
+GEVORDERDEN:
+- Alle parameters via command line
+- Batch processing
+- Scripting integratie
+
+EXPERTS:
+- Direct API calls mogelijk
+- Custom output formats
+- Pipeline integratie
+
+-----------------------------------------------------------------
+PLATFORM COMPATIBILITEIT: CROSS-PLATFORM DESIGN
+-----------------------------------------------------------------
+
+De CLI werkt op alle platforms:
+
+WINDOWS:
+- ANSI colors via colorama (indien geïnstalleerd)
+- Correct path handling
+- PowerShell compatible
+
+LINUX/MAC:
+- Native terminal features
+- UTF-8 support
+- Shell script ready
+
+ENCODING:
+- UTF-8 voor € symbool
+- Fallback naar ASCII indien nodig
+- Locale-aware number formatting
+
+-----------------------------------------------------------------
+PERFORMANCE: SNELLE STARTUP EN UITVOERING
+-----------------------------------------------------------------
+
+Optimalisaties voor snelle response:
+
+LAZY IMPORTS:
+- Materialen alleen laden indien nodig
+- Engines alleen instantiëren bij gebruik
+
+MINIMAL DEPENDENCIES:
+- Alleen essentiële libraries
+- Optionele features degraderen graceful
+
+CACHING:
+- Materiaal lijst één keer laden
+- Config één keer parsen
+
+-----------------------------------------------------------------
+TOEKOMSTIGE UITBREIDINGEN: CLI EVOLUTIE
+-----------------------------------------------------------------
+
+Mogelijke verbeteringen:
+
+1. CONFIGURATIE FILES:
+```python
+parser.add_argument("--config", type=str,
+                   help="Pad naar config file")
+```
+
+2. OUTPUT FORMATS:
+```python
+parser.add_argument("--format", 
+                   choices=["table", "json", "csv"],
+                   default="table")
+```
+
+3. VERBOSE LOGGING:
+```python
+parser.add_argument("-v", "--verbose", 
+                   action="count", default=0)
+```
+
+4. PROFILE SUPPORT:
+```python
+parser.add_argument("--profile", type=str,
+                   help="Gebruik opgeslagen profiel")
+```
+
+-----------------------------------------------------------------
+CONCLUSIE: KRACHTIGE MAAR TOEGANKELIJKE CLI
+-----------------------------------------------------------------
+
+Deze CLI module demonstreert:
+
+TECHNISCH:
+- Robuuste argument parsing
+- Flexibele input modi
+- Cross-platform compatible
+- Automation ready
+
+GEBRUIKSVRIENDELIJK:
+- Nederlandse interface
+- Intuïtieve prompts
+- Duidelijke feedback
+- Progressive complexity
+
+PROFESSIONEEL:
+- Clean output formatting
+- Proper exit codes
+- Scriptable interface
+- Extensible design
+
+Het resultaat is een command line tool die zowel beginners als
+experts efficiënt bedient, met ruimte voor toekomstige groei
+en integratie in grotere workflows.
+=============================================================== 

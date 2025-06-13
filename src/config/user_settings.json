@@ -1,0 +1,16 @@
+{
+    "printer_power": "1.05",
+    "energy_price": "0.3",
+    "labour_cost": "35.0",
+    "monitoring_pct": "10.0",
+    "maintenance_cost": "0.1",
+    "overhead_year": "1000.0",
+    "annual_hours": "2000.0",
+    "markup_material": "100.0",
+    "markup_variable": "70.0",
+    "spoed_surcharge": "50.0",
+    "abrasive_surcharge": "1.5",
+    "color_fee_min": "10.0",
+    "color_fee_max": "15.0",
+    "auto_time_per_gram": "1.5"
+}

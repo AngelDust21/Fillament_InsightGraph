@@ -1,0 +1,294 @@
+===============================================================
+UITLEG BIJ CONFIG.PY & USER_CONFIG.PY - CONFIGURATIE SYSTEEM
+===============================================================
+
+Dit document analyseert het geavanceerde configuratiesysteem van de
+H2D Prijs Calculator, inclusief de filosofie achter dynamische 
+configuratie, persistentie strategieën en architecturale flexibiliteit.
+
+-----------------------------------------------------------------
+CONFIGURATIE FILOSOFIE: FLEXIBILITEIT ZONDER COMPLEXITEIT
+-----------------------------------------------------------------
+
+Het configuratiesysteem implementeert een gelaagde benadering:
+
+LAAG 1 - STANDAARD WAARDEN (config.py):
+- Hard-coded constanten als fallback
+- Gebaseerd op H2D_PriceBlueprint.md
+- Garandeert altijd werkende applicatie
+
+LAAG 2 - GEBRUIKER OVERRIDES (user_settings.json):
+- Persistente aanpassingen
+- Bedrijfsspecifieke waarden
+- Optioneel en veilig
+
+LAAG 3 - RUNTIME CONFIGURATIE (GUI):
+- Live aanpassingen tijdens gebruik
+- Direct effect op berekeningen
+- Validatie en feedback
+
+Deze hiërarchie biedt:
+- Zero-configuratie opstarten (werkt direct)
+- Volledige aanpasbaarheid indien gewenst
+- Veilige fallback bij corrupte configuratie
+
+-----------------------------------------------------------------
+DYNAMISCHE CONFIG LOADING: SLIMME DEFAULTING
+-----------------------------------------------------------------
+
+Het systeem in config.py gebruikt een elegant patroon:
+
+```python
+try:
+    from .user_config import load_user_config, config_exists
+    if config_exists():
+        _user_config = load_user_config()
+        _get_float = lambda key, default: float(_user_config.get(key, str(default)))
+    else:
+        _get_float = lambda key, default: default
+except ImportError:
+    _get_float = lambda key, default: default
+```
+
+ONTWERPPRINCIPES:
+1. FAIL-SAFE: Bij elke fout vallen we terug op standaard
+2. TYPE SAFETY: Expliciete conversie van string naar numeriek
+3. BACKWARDS COMPATIBLE: Werkt ook zonder user_config module
+4. ZERO DEPENDENCIES: Geen externe libraries nodig
+
+-----------------------------------------------------------------
+JSON OPSLAG: WAAROM JSON?
+-----------------------------------------------------------------
+
+De keuze voor JSON als opslagformaat is strategisch:
+
+VOORDELEN:
+1. MENSELIJK LEESBAAR:
+   - Gebruiker kan configuratie inspecteren
+   - Debugging zonder speciale tools
+   - Version control vriendelijk
+
+2. UNIVERSEEL:
+   - Native Python support
+   - Cross-platform compatibel
+   - Industrie standaard
+
+3. SCHEMA-VRIJ:
+   - Nieuwe configuraties zonder migratie
+   - Flexibele uitbreidingen
+   - Geen database overhead
+
+VOORBEELD user_settings.json:
+```json
+{
+    "printer_power": "1.05",
+    "energy_price": "0.30",
+    "labour_cost": "23.50",
+    "monitoring_pct": "10",
+    "markup_material": "200",
+    "markup_variable": "70"
+}
+```
+
+-----------------------------------------------------------------
+TYPE CONVERSIE STRATEGIE: ROBUUSTE PARSING
+-----------------------------------------------------------------
+
+Alle waarden worden als strings opgeslagen maar getypt gebruikt:
+
+```python
+PRINTER_POWER_KW: Final[float] = _get_float('printer_power', 1.05)
+MONITORING_PERCENTAGE: Final[float] = _get_float('monitoring_pct', 10) / 100
+```
+
+WAAROM STRINGS?:
+1. JSON consistentie (geen mixed types)
+2. GUI invoer is altijd string-based
+3. Expliciete conversie voorkomt verrassingen
+4. Decimale precisie behoud
+
+SPECIALE GEVALLEN:
+- Percentages: Opgeslagen als geheel getal, gebruikt als factor
+- Prijzen: Altijd in euro's met 2 decimalen precisie
+- Tijd: Uren met fractionale mogelijkheid
+
+-----------------------------------------------------------------
+CONFIGURATIE SCOPING: MODULAIRE ORGANISATIE
+-----------------------------------------------------------------
+
+De configuratie is logisch gegroepeerd:
+
+BASIS KOSTEN:
+- Printer hardware (vermogen)
+- Operationele kosten (energie, arbeid)
+- Vaste kosten (overhead)
+
+MARGES & PRIJSSTRATEGIE:
+- Materiaal markup (winstmarge op grondstoffen)
+- Variabele markup (winstmarge op tijd/energie)
+
+TOESLAGEN:
+- Spoedwerk premie
+- Speciale materialen (abrasief)
+- Multi-color setup
+
+Deze groepering:
+- Maakt de GUI organisatie intuïtief
+- Faciliteert toekomstige uitbreidingen
+- Scheidt concerns voor verschillende gebruikersrollen
+
+-----------------------------------------------------------------
+IMMUTABILITY VIA FINAL: CONFIGURATIE ALS CONTRACT
+-----------------------------------------------------------------
+
+Het gebruik van `Final` type hints communiceert intentie:
+
+```python
+PRINTER_POWER_KW: Final[float] = _get_float('printer_power', 1.05)
+```
+
+VOORDELEN:
+1. COMPILE-TIME CHECKS: Type checkers waarschuwen bij herAssignment
+2. DOCUMENTATIE: Duidelijk dat deze waarden constant zijn binnen runtime
+3. PERFORMANCE: Python kan optimalisaties toepassen
+4. CONTRACT: Andere modules kunnen op stabiliteit vertrouwen
+
+-----------------------------------------------------------------
+AFGELEIDE WAARDEN: BEREKENDE CONFIGURATIE
+-----------------------------------------------------------------
+
+Sommige configuraties worden berekend uit basis waarden:
+
+```python
+ENERGY_COST_PER_HOUR: Final[float] = PRINTER_POWER_KW * ENERGY_PRICE_PER_KWH
+VARIABLE_COST_PER_HOUR_EXCL_MATERIAL: Final[float] = (
+    ENERGY_COST_PER_HOUR + MAINTENANCE_COST_PER_HOUR + 
+    MONITORING_COST_PER_HOUR + OVERHEAD_COST_PER_HOUR
+)
+```
+
+DESIGN RATIONALE:
+- DRY principe: Berekeningen op één plek
+- Consistentie: Altijd correcte verhoudingen
+- Performance: Eenmalige berekening bij import
+- Transparantie: Formules zichtbaar in code
+
+-----------------------------------------------------------------
+SETTINGS DATACLASS: IMMUTABLE CONFIGURATIE OBJECT
+-----------------------------------------------------------------
+
+De Settings dataclass biedt een gestructureerde interface:
+
+```python
+@dataclass(frozen=True)
+class Settings:
+    """Immutable snapshot van alle kosten-instellingen."""
+```
+
+WAAROM EEN DATACLASS?:
+1. TYPE SAFETY: Alle velden zijn getypeerd
+2. IMMUTABILITY: frozen=True voorkomt wijzigingen
+3. AUTO-GENERATED: __init__, __repr__, etc.
+4. FUTURE-PROOF: Makkelijk uit te breiden
+
+GEBRUIK PATROON:
+```python
+settings = get_settings()
+# settings.energy_cost_per_hour is read-only
+```
+
+-----------------------------------------------------------------
+CONFIGURATIE LEVENSCYCLUS
+-----------------------------------------------------------------
+
+1. APPLICATIE START:
+   - config.py wordt geïmporteerd
+   - Checkt of user_settings.json bestaat
+   - Laadt gebruikerswaarden of gebruikt standaard
+
+2. RUNTIME:
+   - GUI toont huidige waarden
+   - Gebruiker past aan in Configuratie tab
+   - Validatie voorkomt ongeldige waarden
+
+3. OPSLAAN:
+   - Configuratie wordt naar JSON geschreven
+   - Oude waarden worden overschreven
+   - Nieuwe sessies gebruiken opgeslagen waarden
+
+4. RESET:
+   - Gebruiker kan terugkeren naar standaard
+   - JSON wordt verwijderd of overschreven
+   - Applicatie herstart niet nodig
+
+-----------------------------------------------------------------
+SECURITY OVERWEGINGEN
+-----------------------------------------------------------------
+
+Het configuratiesysteem implementeert veilige praktijken:
+
+1. INPUT VALIDATIE:
+   - Alleen numerieke waarden toegestaan
+   - Negatieve waarden check
+   - Type conversie in try/except
+
+2. FILE SYSTEM:
+   - Configuratie in applicatie directory
+   - Geen systeem paths modificatie
+   - Gebruiker heeft altijd toegang
+
+3. NO CODE EXECUTION:
+   - JSON kan geen code bevatten
+   - Geen eval() of exec() gebruik
+   - Veilig tegen injection
+
+-----------------------------------------------------------------
+UITBREIDBAARHEID: TOEKOMSTBESTENDIGE ARCHITECTUUR
+-----------------------------------------------------------------
+
+Het systeem is ontworpen voor groei:
+
+NIEUWE CONFIGURATIES TOEVOEGEN:
+1. Voeg constante toe aan config.py
+2. Voeg veld toe aan GUI configuratie tab
+3. Voeg key toe aan config_vars dictionary
+
+BACKWARDS COMPATIBILITY:
+- Ontbrekende keys gebruiken standaard waarden
+- Oude JSON files blijven werken
+- Geen migratie scripts nodig
+
+VOORBEELDEN TOEKOMSTIGE UITBREIDINGEN:
+- Materiaal-specifieke marges
+- Klant-specifieke kortingen
+- Seizoensgebonden prijsaanpassingen
+- Multi-valuta ondersteuning
+
+-----------------------------------------------------------------
+CONCLUSIE: ENTERPRISE-GRADE CONFIGURATIE
+-----------------------------------------------------------------
+
+Dit configuratiesysteem demonstreert professionele praktijken:
+
+TECHNISCH:
+- Type-safe implementatie
+- Robuuste foutafhandeling
+- Efficiënte caching strategieën
+- Clean architecture principles
+
+GEBRUIKSVRIENDELIJK:
+- Zero-configuratie default
+- Intuïtieve GUI aanpassingen
+- Transparante persistentie
+- Eenvoudige reset mogelijkheid
+
+ZAKELIJK:
+- Flexibele prijsstrategieën
+- Bedrijfsspecifieke aanpassingen
+- Audit trail via JSON history
+- Schaalbaarheid voor groei
+
+Het resultaat is een configuratiesysteem dat zowel krachtig als
+toegankelijk is, geschikt voor zowel kleine workshops als grote
+productieomgevingen.
+=============================================================== 

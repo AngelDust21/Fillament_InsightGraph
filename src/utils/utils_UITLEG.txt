@@ -1,0 +1,380 @@
+===============================================================
+UITLEG BIJ UTILS.PY - UTILITY FUNCTIES EN HELPERS
+===============================================================
+
+Dit document analyseert de utility functies van de H2D Calculator,
+inclusief helper patterns, code hergebruik filosofie, en de kunst
+van het bouwen van een robuuste utility library.
+
+-----------------------------------------------------------------
+UTILITY FILOSOFIE: DRY EN SINGLE RESPONSIBILITY
+-----------------------------------------------------------------
+
+De utils module volgt fundamentele principes:
+
+DRY (Don't Repeat Yourself):
+- Gemeenschappelijke functionaliteit centraliseren
+- Één bron van waarheid
+- Consistente implementatie
+
+SINGLE RESPONSIBILITY:
+- Elke functie doet één ding
+- Duidelijke, voorspelbare interfaces
+- Composable building blocks
+
+PURE FUNCTIONS:
+- Geen side effects waar mogelijk
+- Input → Output, deterministisch
+- Testbaar en betrouwbaar
+
+-----------------------------------------------------------------
+AFRONDINGSSTRATEGIE: COMMERCIEEL VRIENDELIJK
+-----------------------------------------------------------------
+
+```python
+def round_currency(amount: float) -> float:
+    """Rond af naar 2 decimalen (centen)."""
+    return round(amount, 2)
+```
+
+WAAROM ROUND() EN NIET DECIMAL?
+
+SIMPLICITEIT:
+- Built-in functie, geen imports
+- Voldoende voor display doeleinden
+- Sneller dan Decimal
+
+WANNEER WEL DECIMAL:
+- Financiële transacties
+- Accumulating rounding errors
+- Audit requirements
+
+BUSINESS LOGIC:
+- Altijd 2 decimalen (€X.XX)
+- Consistente display
+- Voorkomt €19.9999999
+
+-----------------------------------------------------------------
+PERCENTAGE BEREKENING: VEILIG EN PRECIES
+-----------------------------------------------------------------
+
+```python
+def safe_percentage(part: float, whole: float) -> float:
+    """Bereken percentage met zero-division protection."""
+    if whole == 0:
+        return 0.0
+    return (part / whole) * 100
+```
+
+DESIGN KEUZES:
+
+ZERO DIVISION:
+- Retourneer 0% i.p.v. crash
+- Logisch voor business context
+- Gebruiker-vriendelijk
+
+FLOAT ARITHMETIC:
+- Acceptabel voor percentages
+- Display precisie voldoende
+- Performance prioriteit
+
+GEBRUIK:
+```python
+margin_pct = safe_percentage(profit, cost)
+# Geen try/except nodig!
+```
+
+-----------------------------------------------------------------
+FORMATTING: NEDERLANDSE STANDAARDEN
+-----------------------------------------------------------------
+
+```python
+def format_euro(amount: float) -> str:
+    """Format als euro bedrag: €123,45"""
+    rounded = round_currency(amount)
+    return f"€{rounded:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+```
+
+LOCALE SPECIFIEK:
+- Nederlandse notatie: €1.234,56
+- Punt voor duizendtallen
+- Komma voor decimalen
+
+WAAROM MANUAL REPLACE?
+- Geen locale dependencies
+- Werkt overal hetzelfde
+- Expliciete controle
+
+ALTERNATIEF (met locale):
+```python
+import locale
+locale.setlocale(locale.LC_ALL, 'nl_NL')
+return locale.currency(amount)
+```
+
+-----------------------------------------------------------------
+CSV EXPORT: STRUCTURED DATA OUTPUT
+-----------------------------------------------------------------
+
+```python
+def export_to_csv(result: PriceResult, filename: str = None) -> str:
+    """Exporteer resultaat naar CSV bestand."""
+    if filename is None:
+        filename = f"h2d_calc_{datetime.now():%Y%m%d_%H%M%S}.csv"
+```
+
+SMART DEFAULTS:
+- Auto-genereer filename met timestamp
+- Voorkom overschrijven
+- Sorteerbare namen
+
+CSV STRUCTURE:
+```python
+writer.writerow(['Component', 'Waarde', 'Eenheid'])
+writer.writerow(['Gewicht', weight, 'gram'])
+```
+
+DESIGN PRINCIPES:
+- Headers voor context
+- Eenheden expliciet
+- Excel-vriendelijk format
+- Internationale compatibiliteit
+
+ERROR HANDLING:
+```python
+except IOError as e:
+    print(f"Fout bij wegschrijven: {e}")
+    return None
+```
+
+-----------------------------------------------------------------
+TIJD FORMATTING: MENSELIJK LEESBAAR
+-----------------------------------------------------------------
+
+```python
+def format_time(minutes: int) -> str:
+    """Format minuten als 'X uur Y min'."""
+    if minutes < 60:
+        return f"{minutes} min"
+    hours = minutes // 60
+    mins = minutes % 60
+    if mins == 0:
+        return f"{hours} uur"
+    return f"{hours} uur {mins} min"
+```
+
+GEBRUIKSVRIENDELIJKHEID:
+- 45 min → "45 min"
+- 60 min → "1 uur"
+- 90 min → "1 uur 30 min"
+
+EDGE CASES:
+- Enkelvoud/meervoud correct
+- Geen "0 min" tonen
+- Natuurlijke taal output
+
+-----------------------------------------------------------------
+VALIDATIE HELPERS: INPUT SANITIZATION
+-----------------------------------------------------------------
+
+```python
+def validate_positive(value: float, name: str) -> float:
+    """Valideer dat waarde positief is."""
+    if value <= 0:
+        raise ValueError(f"{name} moet positief zijn, kreeg: {value}")
+    return value
+```
+
+FAIL FAST PRINCIPE:
+- Vroege validatie voorkomt latere fouten
+- Duidelijke error messages
+- Debugging vriendelijk
+
+CHAINABLE DESIGN:
+```python
+weight = validate_positive(
+    validate_number(user_input, "Gewicht"),
+    "Gewicht"
+)
+```
+
+-----------------------------------------------------------------
+LOGGING UTILITIES: DEBUG EN AUDIT TRAIL
+-----------------------------------------------------------------
+
+```python
+def log_calculation(result: PriceResult, filename: str = "h2d_log.txt"):
+    """Log calculation for audit trail."""
+    with open(filename, 'a', encoding='utf-8') as f:
+        f.write(f"\n[{datetime.now():%Y-%m-%d %H:%M:%S}]\n")
+        f.write(f"Kosten: €{result.breakdown.total_cost:.2f}\n")
+        f.write(f"Verkoopprijs: €{result.sell_price:.2f}\n")
+        f.write(f"Marge: {result.margin_pct:.1f}%\n")
+```
+
+APPEND MODE:
+- Behoud historie
+- Crash-safe logging
+- Audit compliance
+
+UTF-8 ENCODING:
+- € symbool support
+- Internationale karakters
+- Platform onafhankelijk
+
+-----------------------------------------------------------------
+DATA CONVERSION: TYPE SAFETY HELPERS
+-----------------------------------------------------------------
+
+```python
+def parse_bool(value: Union[str, bool, int]) -> bool:
+    """Parse various inputs to boolean."""
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        return value.lower() in ('true', 'yes', '1', 'ja')
+    return bool(value)
+```
+
+FLEXIBLE PARSING:
+- Ondersteunt meerdere formaten
+- Nederlandse opties ("ja")
+- Gebruiker-vriendelijk
+
+TYPE UNIONS:
+- Accept multiple input types
+- Consistent output type
+- Reduces caller complexity
+
+-----------------------------------------------------------------
+CLIPBOARD INTEGRATIE: MODERNE WORKFLOW
+-----------------------------------------------------------------
+
+```python
+def copy_to_clipboard(text: str) -> bool:
+    """Kopieer text naar clipboard."""
+    try:
+        pyperclip.copy(text)
+        return True
+    except Exception:
+        return False
+```
+
+GRACEFUL DEGRADATION:
+- Faalt zacht zonder pyperclip
+- Retourneert success status
+- Geen crashes
+
+CROSS-PLATFORM:
+- pyperclip handelt OS verschillen
+- Windows/Mac/Linux support
+- Geen platform-specific code
+
+-----------------------------------------------------------------
+CONFIGURATIE HELPERS: SETTINGS MANAGEMENT
+-----------------------------------------------------------------
+
+```python
+def merge_configs(base: dict, override: dict) -> dict:
+    """Merge configuraties met override prioriteit."""
+    result = base.copy()
+    result.update(override)
+    return result
+```
+
+IMMUTABLE OPERATIONS:
+- Originelen blijven intact
+- Voorkomt side effects
+- Predictable behavior
+
+GEBRUIK:
+```python
+final_config = merge_configs(
+    DEFAULT_CONFIG,
+    user_settings
+)
+```
+
+-----------------------------------------------------------------
+PERFORMANCE UTILITIES: PROFILING HELPERS
+-----------------------------------------------------------------
+
+```python
+def timer(func):
+    """Decorator voor functie timing."""
+    def wrapper(*args, **kwargs):
+        start = time.time()
+        result = func(*args, **kwargs)
+        elapsed = time.time() - start
+        print(f"{func.__name__} duurde {elapsed:.3f}s")
+        return result
+    return wrapper
+```
+
+DECORATOR PATTERN:
+- Non-invasive profiling
+- Reusable across functions
+- Development tool
+
+GEBRUIK:
+```python
+@timer
+def expensive_operation():
+    # ... complex berekening ...
+```
+
+-----------------------------------------------------------------
+TOEKOMSTIGE UITBREIDINGEN: UTILITY EVOLUTION
+-----------------------------------------------------------------
+
+Potentiële nieuwe utilities:
+
+1. BATCH OPERATIONS:
+```python
+def process_batch(items: List, processor: Callable) -> List:
+    """Process items met progress bar."""
+    return [processor(item) for item in tqdm(items)]
+```
+
+2. CACHE DECORATOR:
+```python
+@lru_cache(maxsize=128)
+def expensive_lookup(key: str) -> float:
+    # ... database query ...
+```
+
+3. RETRY LOGIC:
+```python
+@retry(tries=3, delay=1)
+def unreliable_operation():
+    # ... network call ...
+```
+
+-----------------------------------------------------------------
+CONCLUSIE: FOUNDATION VOOR ROBUUSTE APPLICATIES
+-----------------------------------------------------------------
+
+Deze utils module demonstreert:
+
+TECHNISCH:
+- Clean, herbruikbare functies
+- Defensive programming
+- Type hints en documentatie
+- Cross-platform support
+
+PRAKTISCH:
+- Business-aware formatting
+- User-friendly validation
+- Graceful error handling
+- Modern conveniences
+
+STRATEGISCH:
+- Centralized common logic
+- Testable components
+- Extensible patterns
+- Maintenance-friendly
+
+Het resultaat is een utility toolkit die de hele applicatie
+robuuster, consistenter en aangenamer maakt om mee te werken,
+voor zowel ontwikkelaars als eindgebruikers.
+=============================================================== 

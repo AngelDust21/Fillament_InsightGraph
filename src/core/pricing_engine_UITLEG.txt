@@ -1,0 +1,286 @@
+===============================================================
+UITLEG BIJ PRICING_ENGINE.PY - PRIJSSTRATEGIE EN WINSTMARGES
+===============================================================
+
+Dit document analyseert de prijsbepalingslogica van de H2D Calculator,
+inclusief de psychologie achter prijsstrategieën, markup filosofie
+en de kunst van winstgevende maar eerlijke prijsstelling.
+
+-----------------------------------------------------------------
+PRIJSFILOSOFIE: GEDIFFERENTIEERDE MARKUP STRATEGIE
+-----------------------------------------------------------------
+
+De pricing_engine implementeert een gesegmenteerde markup strategie:
+
+MATERIAAL MARKUP (200%):
+- Hoge markup compenseert voorraadrisico
+- Dekt handling en opslag kosten
+- Buffert tegen prijsfluctuaties
+
+VARIABELE MARKUP (150%):
+- Lagere markup op tijd/energie
+- Competitief blijven op arbeidsintensieve prints
+- Stimuleert grotere opdrachten
+
+Deze differentiatie erkent dat:
+- Materiaal een handelsgoed is (hogere marge gerechtvaardigd)
+- Tijd/arbeid meer commoditized is (lagere marge voor volume)
+
+-----------------------------------------------------------------
+DATACLASS PATTERN: TRANSPARANTE PRIJSSTRUCTUUR
+-----------------------------------------------------------------
+
+```python
+@dataclass
+class PriceResult:
+    breakdown: CostBreakdown  # Onderliggende kosten
+    sell_price: float        # Finale verkoopprijs
+    margin_pct: float        # Winstmarge percentage
+```
+
+DESIGN PRINCIPES:
+1. TRACEERBAARHEID: Link tussen kosten en prijs blijft zichtbaar
+2. TRANSPARANTIE: Marge percentage direct beschikbaar
+3. COMPOSABILITY: Bevat volledige CostBreakdown voor analyse
+4. IMMUTABILITY: Berekende prijzen kunnen niet wijzigen
+
+-----------------------------------------------------------------
+BASIS PRIJSFORMULE: GESEGMENTEERDE MARKUP
+-----------------------------------------------------------------
+
+```python
+sell = (cost_mat * MARKUP_MATERIAL) + (cost_var * MARKUP_VARIABLE)
+```
+
+VOORBEELD BEREKENING:
+Stel: 100g PLA print, 4 uur
+- Materiaalkosten: €1.40
+- Variabele kosten: €24.28
+
+PRIJSBEREKENING:
+- Materiaal: €1.40 × 2.0 = €2.80
+- Variabel: €24.28 × 1.5 = €36.42
+- TOTAAL: €39.22 verkoopprijs
+
+WINSTMARGE:
+- Kostprijs: €25.68
+- Verkoopprijs: €39.22
+- Winst: €13.54 (52.7% marge)
+
+-----------------------------------------------------------------
+MULTICOLOR TOESLAG: COMPLEXITEIT PREMIUM
+-----------------------------------------------------------------
+
+```python
+if multicolor:
+    setup_fee = (COLOR_SETUP_FEE_MIN + COLOR_SETUP_FEE_MAX) / 2
+    sell += setup_fee
+```
+
+RATIONALE VOOR €22.50 GEMIDDELD:
+- Extra filament wisselingen
+- Verhoogd risico op mislukte prints
+- Langere setup tijd
+- Complexere kwaliteitscontrole
+
+PSYCHOLOGIE:
+- Vaste fee ontmoedigt kleine multicolor prints
+- Grote prints absorberen fee makkelijker
+- Klant waardeert complexiteit premium
+
+-----------------------------------------------------------------
+SPOEDTOESLAG: URGENTIE MONETARISEREN
+-----------------------------------------------------------------
+
+```python
+if spoed:
+    sell *= (1 + SPOED_SURCHARGE_RATE)  # +25%
+```
+
+WAAROM PERCENTAGE IN PLAATS VAN VAST BEDRAG?
+- Schaalt met opdracht grootte
+- Grote spoed opdrachten = grotere impact op planning
+- Psychologisch acceptabeler ("rush charge")
+
+PRAKTIJK:
+- €40 order → €50 met spoed (+€10)
+- €200 order → €250 met spoed (+€50)
+
+Dit reflecteert de werkelijke impact op operations.
+
+-----------------------------------------------------------------
+MARGE BEREKENING: KRITIEKE BUSINESS METRIC
+-----------------------------------------------------------------
+
+```python
+margin = (sell - breakdown.total_cost) / breakdown.total_cost * 100
+```
+
+INTERPRETATIE VAN MARGES:
+- < 20%: Te laag, risico bij tegenvallers
+- 20-40%: Gezond voor volume business
+- 40-60%: Ideaal voor custom werk
+- > 60%: Premium segment / specialty
+
+FACTOREN DIE MARGE BEÏNVLOEDEN:
+1. Materiaal type (goedkoop = hogere %)
+2. Print duur (kort = materiaal domineert)
+3. Toeslagen (verhogen absolute marge)
+4. Configuratie aanpassingen
+
+-----------------------------------------------------------------
+PSYCHOLOGISCHE PRIJSSTELLING: WAARGENOMEN WAARDE
+-----------------------------------------------------------------
+
+De pricing strategie balanceert meerdere psychologische factoren:
+
+ANCHORING:
+- Toon eerst kostprijs breakdown
+- Verkoopprijs lijkt redelijker na kosten inzicht
+
+TRANSPARENCY:
+- Open over marge percentage
+- Bouwt vertrouwen op
+
+PREMIUM POSITIONING:
+- Kwaliteit boven laagste prijs
+- Professional service premium
+
+VALUE STACKING:
+- Materiaal + Expertise + Equipment + Service
+- Som der delen rechtvaardigt totaal
+
+-----------------------------------------------------------------
+CONFIGUREERBARE MARGES: MARKT ADAPTATIE
+-----------------------------------------------------------------
+
+Het systeem ondersteunt dynamische marge aanpassing:
+
+SCENARIOS:
+1. OPSTARTFASE: Lagere marges voor marktpenetratie
+2. GEVESTIGD: Standaard marges voor duurzaamheid  
+3. PREMIUM: Hogere marges voor specialty diensten
+4. VOLUME: Lagere marges met minimum orders
+
+IMPLEMENTATIE:
+- GUI configuratie tab
+- Persistent opgeslagen
+- Direct effect op alle berekeningen
+
+-----------------------------------------------------------------
+BREAK-EVEN ANALYSE: MINIMUM VIABLE PRICE
+-----------------------------------------------------------------
+
+De pricing engine waarborgt altijd profitabiliteit:
+
+```python
+assert sell_price >= breakdown.total_cost
+```
+
+BREAK-EVEN PUNT:
+- Absolute ondergrens voor overleven
+- Geen ruimte voor tegenvallers
+- Alleen voor strategische orders
+
+GEZONDE MARGE BUFFER:
+- Dekt onvoorziene kosten
+- Financiert business groei
+- Buffert seizoensfluctuaties
+
+-----------------------------------------------------------------
+COMPETITIEVE POSITIONERING: MARKTANALYSE
+-----------------------------------------------------------------
+
+De standaard marges positioneren de service als:
+
+NIET TE GOEDKOOP:
+- Voorkomt race-to-bottom
+- Signaleert kwaliteit
+- Filtert price shoppers
+
+NIET TE DUUR:
+- Blijft toegankelijk
+- Competitief met alternatieven
+- Volume mogelijk
+
+SWEET SPOT:
+- Premium t.o.v. hobbyisten
+- Competitief t.o.v. professionals
+- Value-for-money perceptie
+
+-----------------------------------------------------------------
+TOEKOMSTIGE PRIJSMODELLEN: GEAVANCEERDE STRATEGIEËN
+-----------------------------------------------------------------
+
+Mogelijke uitbreidingen van het prijsmodel:
+
+1. VOLUME KORTINGEN:
+```python
+if quantity > 10:
+    sell *= 0.90  # 10% korting
+```
+
+2. KLANT SEGMENTATIE:
+```python
+if customer.type == "business":
+    sell *= business_multiplier
+```
+
+3. DYNAMISCHE PRICING:
+```python
+if capacity_utilization < 50%:
+    sell *= 0.85  # Stimuleer vraag
+```
+
+4. SUBSCRIPTION MODEL:
+```python
+if customer.has_subscription:
+    sell *= 0.75  # Member pricing
+```
+
+-----------------------------------------------------------------
+ROI MAXIMALISATIE: STRATEGISCHE OVERWEGINGEN
+-----------------------------------------------------------------
+
+De pricing engine ondersteunt strategische besluitvorming:
+
+OPPORTUNITY COST:
+- Elk uur printer tijd heeft alternatieve waarde
+- Lage marge orders blokkeren lucratieve kansen
+- Minimum order waarde implementeren
+
+CUSTOMER LIFETIME VALUE:
+- Eerste order kan break-even zijn
+- Repeat business rechtvaardigt investering
+- Relatie waarde > transactie waarde
+
+PORTFOLIO BALANS:
+- Mix van high/low margin werk
+- Stabiele base load + premium peaks
+- Diversificatie vermindert risico
+
+-----------------------------------------------------------------
+CONCLUSIE: WINSTGEVENDE DUURZAAMHEID
+-----------------------------------------------------------------
+
+Deze pricing_engine demonstreert:
+
+ECONOMISCH:
+- Gezonde marge structuur
+- Flexibele prijsstrategie
+- Market-based pricing
+
+PSYCHOLOGISCH:
+- Fair value perceptie
+- Transparante opbouw
+- Premium positionering
+
+STRATEGISCH:
+- Configureerbare parameters
+- Toekomstbestendige architectuur
+- Data-driven optimalisatie
+
+Het resultaat is een prijsmodel dat zowel de klant als het
+bedrijf duurzaam bedient, met ruimte voor groei en aanpassing
+aan marktomstandigheden.
+=============================================================== 
