@@ -18,8 +18,8 @@ Een moderne prijscalculator applicatie voor H2D met GUI interface, ontwikkeld do
 
 1. Clone deze repository:
 ```bash
-git clone https://github.com/[jouw-username]/bedrijfsleider.git
-cd bedrijfsleider
+git clone https://github.com/[jouw-username]/Fillament_InsightGraph.git
+cd Fillament_InsightGraph
 ```
 
 2. Installeer de benodigde dependencies:
@@ -47,7 +47,7 @@ python start_gui.py
 ## 📁 Project Structuur
 
 ```
-bedrijfsleider/
+Fillament_InsightGraph/
 ├── start_gui.py              # Hoofd startpunt voor de applicatie
 ├── start_calculator.bat      # Windows batch script
 ├── start_calculator.ps1      # PowerShell script

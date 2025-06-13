@@ -1,0 +1,31 @@
+# GitHub Deploy Commando's
+# ========================
+
+# 1. Voeg je GitHub repository toe als remote
+# Vervang [jouw-username] met je echte GitHub gebruikersnaam!
+git remote add origin https://github.com/[jouw-username]/Fillament_InsightGraph.git
+
+# 2. Push je code naar GitHub
+git push -u origin master
+
+# Als je een foutmelding krijgt over authenticatie:
+# - GitHub vraagt mogelijk om je gebruikersnaam en wachtwoord
+# - Of je moet een Personal Access Token gebruiken
+# - Zie: https://docs.github.com/en/authentication
+
+# Extra commando's die handig kunnen zijn:
+
+# Check je remote repositories
+git remote -v
+
+# Verander de remote URL als nodig
+git remote set-url origin https://github.com/[jouw-username]/Fillament_InsightGraph.git
+
+# Als je per ongeluk de verkeerde remote hebt toegevoegd
+git remote remove origin
+
+# Status controleren
+git status
+
+# Laatste commits bekijken
+git log --oneline -5 
