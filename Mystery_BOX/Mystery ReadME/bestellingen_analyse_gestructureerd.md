@@ -1,20 +1,27 @@
-# Bestellingen Analyse - Delicatessenzaak (UITGEVOERD)
+# Mystery Box - Bestellingen Analyse Project
 
-## PROJECT STRUCTUUR
+## PROJECT STRUCTUUR (ACTUEEL)
 ```
-bestellingen_analyse/
-├── data/
-│   └── Bestellingen.csv (originele data)
-├── scripts/
-│   ├── data_cleaning.py (31 regels - data opschoning)
-│   └── data_analyse.py (1066 regels - alle 18 DF analyses)
-├── visualisaties/ (klaar voor stap 3)
-└── rapporten/ (klaar voor output)
+Mystery_BOX/
+├── Mystery ReadME/
+│   ├── data/
+│   │   └── Bestellingen.csv (originele data)
+│   ├── scripts/
+│   │   ├── data_cleaning.py (114 regels - data opschoning)
+│   │   ├── data_analyse.py (1197 regels - alle 18 DF analyses)
+│   │   ├── visualisaties.py (1598 regels - alle 18 visualisaties)
+│   │   └── streamlit_app.py (197 regels - web dashboard)
+│   ├── rapporten/
+│   │   ├── eindrapport_bestellingen_analyse.md
+│   │   └── social_media_strategie.md
+│   ├── start_web_ui.bat (start script)
+│   ├── requirements.txt (dependencies)
+│   └── README bestanden (deze documentatie)
 ```
 
 ## FASE 1: DATA CLEANING ✅ VOLTOOID
 
-### Script: `data_cleaning.py`
+### Script: `data_cleaning.py` (114 regels)
 - **Functie**: `clean_bestellingen_data()`
 - **Kolommen geselecteerd**: 15 relevante kolommen
 - **Hernoemd naar Nederlandse namen**: bestelnummer, besteldatum, email_klant, etc.
@@ -26,7 +33,7 @@ bestellingen_analyse/
 
 ## FASE 2: ANALYSE ✅ ALLE 18 DF's VOLTOOID
 
-### Script: `data_analyse.py`
+### Script: `data_analyse.py` (1197 regels)
 
 ### DF1: TOP 20 PRODUCTEN ANALYSE (ALFABETISCH)
 - Berekent juiste totale omzet per product (aantal × prijs)

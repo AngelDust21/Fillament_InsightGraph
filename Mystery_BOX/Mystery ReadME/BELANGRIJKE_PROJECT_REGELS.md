@@ -1,27 +1,31 @@
-# 🚨 BELANGRIJKE PROJECT REGELS - NOOIT MEER VERGISSEN! 🚨
+# 🚨 BELANGRIJKE PROJECT REGELS - MYSTERY BOX PROJECT 🚨
 
 ## 📁 PROJECT STRUCTUUR
 
 ```
-bestellingen_analyse/
-├── data/
-│   └── Bestellingen.csv (ORIGINELE DATA - NIET AANRAKEN!)
-├── scripts/
-│   ├── data_cleaning.py (31 regels - haalt data op, maakt df_filtered en df_bestellingen)
-│   ├── data_analyse.py (1066 regels - ALLE 18 DF analyses)
-│   └── visualisaties.py (visualisaties - IMPORTEERT uit data_analyse!)
-├── visualisaties/ (voor eventuele export)
-└── rapporten/ (voor rapporten)
+Mystery_BOX/
+├── Mystery ReadME/
+│   ├── data/
+│   │   └── Bestellingen.csv (ORIGINELE DATA - NIET AANRAKEN!)
+│   ├── scripts/
+│   │   ├── data_cleaning.py (114 regels - haalt data op, maakt df_filtered en df_bestellingen)
+│   │   ├── data_analyse.py (1197 regels - ALLE 18 DF analyses)
+│   │   ├── visualisaties.py (1598 regels - visualisaties - IMPORTEERT uit data_analyse!)
+│   │   └── streamlit_app.py (197 regels - Web UI Dashboard)
+│   ├── rapporten/ (voor rapporten)
+│   ├── start_web_ui.bat (Start script voor dashboard)
+│   ├── requirements.txt (Python dependencies)
+│   └── README bestanden (documentatie)
 ```
 
 ## ⚠️ FUNDAMENTELE REGELS - ONTHOUD DIT!
 
 ### 1. DATA FLOW
 ```
-Bestellingen.csv → data_cleaning.py → data_analyse.py → visualisaties.py
-                         ↓                    ↓                ↓
-                   (maakt 2 dfs)      (gebruikt dfs,      (importeert 
-                                       maakt DF1-18)       DF resultaten)
+Bestellingen.csv → data_cleaning.py → data_analyse.py → visualisaties.py → streamlit_app.py
+                         ↓                    ↓                ↓                    ↓
+                   (maakt 2 dfs)      (gebruikt dfs,      (importeert         (web dashboard
+                                       maakt DF1-18)       DF resultaten)       met alle GF's)
 ```
 
 ### 2. GEEN DUBBELE CODE!

@@ -1,24 +1,25 @@
-# 🧀 Bestellingen Analyse Web Dashboard
+# 🧀 Mystery Box - Web Dashboard
 
-Een interactieve web applicatie voor het bekijken van alle analyses en visualisaties van de delicatessenzaak bestellingen data.
+Een interactieve web applicatie voor het bekijken van alle analyses en visualisaties van de Mystery Box bestellingen data.
 
 ## 🚀 Snel Starten
 
 ### 1. Installeer vereiste packages
 ```bash
+cd "Mystery_BOX/Mystery ReadME"
 pip install -r requirements.txt
 ```
 
 ### 2. Start de web applicatie
 
-**Windows:**
+**Windows (vanuit Mystery ReadME map):**
 ```bash
 start_web_ui.bat
 ```
 
 **Of handmatig:**
 ```bash
-cd scripts
+cd "Mystery_BOX/Mystery ReadME/scripts"
 streamlit run streamlit_app.py
 ```
 
@@ -64,22 +65,24 @@ streamlit run streamlit_app.py
 
 ### Architectuur
 ```
-bestellingen_analyse/
-├── data/
-│   └── Bestellingen.csv       # Ruwe data
-├── scripts/
-│   ├── data_cleaning.py       # Data voorbereiding
-│   ├── data_analyse.py        # Alle berekeningen (DF1-DF18)
-│   ├── visualisaties.py       # Grafiek generatie (GF1-GF18)
-│   └── streamlit_app.py       # Web UI (dit dashboard)
-├── requirements.txt           # Python dependencies
-└── start_web_ui.bat          # Start script
+Mystery_BOX/
+└── Mystery ReadME/
+    ├── data/
+    │   └── Bestellingen.csv       # Ruwe data
+    ├── scripts/
+    │   ├── data_cleaning.py       # Data voorbereiding (114 regels)
+    │   ├── data_analyse.py        # Alle berekeningen (1197 regels)
+    │   ├── visualisaties.py       # Grafiek generatie (1598 regels)
+    │   └── streamlit_app.py       # Web UI (197 regels)
+    ├── rapporten/                 # Analyse rapporten
+    ├── requirements.txt           # Python dependencies
+    └── start_web_ui.bat          # Start script
 ```
 
 ### Data Flow
 1. **CSV** → `data_cleaning.py` → Schone data
-2. Schone data → `data_analyse.py` → Berekende resultaten
-3. Resultaten → `visualisaties.py` → Matplotlib grafieken
+2. Schone data → `data_analyse.py` → Berekende resultaten (DF1-DF18)
+3. Resultaten → `visualisaties.py` → Matplotlib grafieken (GF1-GF18)
 4. Grafieken → `streamlit_app.py` → **Web Dashboard**
 
 ## 💡 Tips voor Gebruik
