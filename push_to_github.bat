@@ -1,7 +1,7 @@
 @echo off
 echo =================================
 echo    GitHub Push Script
-echo    Fillament InsightGraph
+echo    H2D Prijs Calculator
 echo =================================
 echo.
 
@@ -12,7 +12,7 @@ set username=AngelDust21
 
 echo.
 echo Remote repository toevoegen...
-git remote add origin https://github.com/%username%/Fillament_InsightGraph.git
+git remote add origin https://github.com/%username%/bedrijfsleider.git
 
 echo.
 echo STAP 2: Push naar GitHub

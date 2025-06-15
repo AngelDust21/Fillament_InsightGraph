@@ -3,7 +3,7 @@
 
 # 1. Voeg je GitHub repository toe als remote
 # Vervang [jouw-username] met je echte GitHub gebruikersnaam!
-git remote add origin https://github.com/[jouw-username]/Fillament_InsightGraph.git
+git remote add origin https://github.com/[jouw-username]/bedrijfsleider.git
 
 # 2. Push je code naar GitHub
 git push -u origin master
@@ -19,7 +19,7 @@ git push -u origin master
 git remote -v
 
 # Verander de remote URL als nodig
-git remote set-url origin https://github.com/[jouw-username]/Fillament_InsightGraph.git
+git remote set-url origin https://github.com/[jouw-username]/bedrijfsleider.git
 
 # Als je per ongeluk de verkeerde remote hebt toegevoegd
 git remote remove origin
