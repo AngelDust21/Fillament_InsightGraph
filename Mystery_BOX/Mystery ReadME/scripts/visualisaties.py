@@ -286,8 +286,7 @@ def gf5_bestellingen_heatmap():
     ax.set_title('Bestellingen Heatmap - Wanneer Bestellen Klanten?', fontsize=16, fontweight='bold', pad=20)
     
     plt.tight_layout()
-    print("✅ GF5 wordt getoond in nieuw venster...")
-    plt.show()
+    return fig
 
 # GF6: Product Categorie Donut Chart
 def gf6_product_categorie_donut():
@@ -329,8 +328,7 @@ def gf6_product_categorie_donut():
     ax.legend(wedges, legend_labels, loc="best", bbox_to_anchor=(1, 0, 0.5, 1))
     
     plt.tight_layout()
-    print("✅ GF6 wordt getoond in nieuw venster...")
-    plt.show()
+    return fig
 
 # GF7: Betaalmethode Analyse
 def gf7_betaalmethode_analyse():
@@ -378,8 +376,7 @@ def gf7_betaalmethode_analyse():
     
     plt.suptitle('Betaalmethode Analyse', fontsize=16, fontweight='bold')
     plt.tight_layout()
-    print("✅ GF7 wordt getoond in nieuw venster...")
-    plt.show()
+    return fig
 
 # GF8: Kaas + Brood Combinaties
 def gf8_kaas_brood_combinaties():
@@ -428,8 +425,7 @@ def gf8_kaas_brood_combinaties():
     
     plt.suptitle('Kaas + Brood Cross-Selling Analyse', fontsize=16, fontweight='bold')
     plt.tight_layout()
-    print("✅ GF8 wordt getoond in nieuw venster...")
-    plt.show()
+    return fig
 
 # GF9: Verkooppatronen Analyse
 def gf9_verkooppatronen():
@@ -1561,10 +1557,10 @@ def gf18_klanten_belonen():
 
 # Hoofdfunctie
 if __name__ == "__main__":
-    print("\n🚀 START VISUALISATIE GENERATIE (GF1 t/m GF8)")
+    print("\n🚀 START VISUALISATIE GENERATIE (GF1 t/m GF18)")
     print("="*60)
-    print("📊 ELKE GRAFIEK WORDT IN EEN NIEUW VENSTER GETOOND")
-    print("📌 Sluit het venster om de volgende grafiek te zien")
+    print("📊 ALLE 18 GRAFIEKEN WORDEN GEGENEREERD")
+    print("📌 Gebruik de Web UI voor interactieve weergave")
     print("="*60)
     
     # Check of visualisaties map bestaat
@@ -1584,7 +1580,7 @@ if __name__ == "__main__":
     gf9_verkooppatronen()
     gf10_prijsevolutie()
     gf11_toekomstvoorspelling()
-    gf12_prijsvoorspelling_2080()
+    gf12_lange_termijn()
     gf13_seizoens_feestdagen()
     gf14_leadtime_analyse()
     gf15_product_combinaties()
@@ -1593,6 +1589,6 @@ if __name__ == "__main__":
     gf18_klanten_belonen()
     
     print("\n" + "="*60)
-    print("✅ ALLE VISUALISATIES (GF1 t/m GF8) SUCCESVOL GEGENEREERD!")
-    print("📁 Bestanden opgeslagen in: bestellingen_analyse/visualisaties/")
+    print("✅ ALLE VISUALISATIES (GF1 t/m GF18) SUCCESVOL GEGENEREERD!")
+    print("📊 Grafieken worden getoond in vensters")
     print("="*60) 
