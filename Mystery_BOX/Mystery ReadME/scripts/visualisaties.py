@@ -1434,28 +1434,41 @@ def gf17_winstgevendheid():
 # GF18: Klanten Belonen Matrix
 def gf18_klanten_belonen():
     """GF18: Klanten Belonen - gebruik geïmporteerde data"""
-    fig, axes = plt.subplots(2, 2, figsize=(15, 10))
+    fig, axes = plt.subplots(3, 2, figsize=(16, 14))
     fig.suptitle('GF18: Welke Klanten Belonen?', fontsize=16, fontweight='bold')
     
     # 1. VIP klanten overzicht
     ax1 = axes[0, 0]
     
     if len(df18_vip_klanten) > 0:
-        # Top 5 VIP klanten
-        top5_vip = df18_vip_klanten.head(5)
-        klant_labels = [f"Klant {i+1}" for i in range(len(top5_vip))]
-        uitgaven = top5_vip['totale_uitgaven'].values
+        # Top 10 VIP klanten
+        top10_vip = df18_vip_klanten.head(10)
         
-        bars = ax1.bar(klant_labels, uitgaven, color='gold', edgecolor='darkgoldenrod', linewidth=2)
-        ax1.set_title('Top 5 VIP Klanten - Totale Uitgaven')
-        ax1.set_ylabel('Totale Uitgaven (€)')
-        ax1.grid(axis='y', alpha=0.3)
+        # Maak korte labels van email adressen
+        klant_labels = []
+        for email in top10_vip.index:
+            # Neem alleen het deel voor @ en kort af indien nodig
+            naam = email.split('@')[0]
+            if len(naam) > 12:
+                naam = naam[:10] + '..'
+            klant_labels.append(naam)
+        
+        uitgaven = top10_vip['totale_uitgaven'].values
+        
+        # Horizontale bar chart voor betere leesbaarheid
+        y_pos = np.arange(len(klant_labels))
+        bars = ax1.barh(y_pos, uitgaven, color='gold', edgecolor='darkgoldenrod', linewidth=2)
+        ax1.set_yticks(y_pos)
+        ax1.set_yticklabels(klant_labels, fontsize=9)
+        ax1.set_xlabel('Totale Uitgaven (€)')
+        ax1.set_title('Top 10 VIP Klanten', fontsize=12, fontweight='bold')
+        ax1.grid(axis='x', alpha=0.3)
         
         # Voeg bedragen toe
-        for bar in bars:
-            height = bar.get_height()
-            ax1.text(bar.get_x() + bar.get_width()/2., height,
-                    f'€{height:.0f}', ha='center', va='bottom')
+        for i, (bar, orders) in enumerate(zip(bars, top10_vip['aantal_orders'])):
+            width = bar.get_width()
+            ax1.text(width + 20, bar.get_y() + bar.get_height()/2.,
+                    f'€{width:.0f} ({orders} ord)', ha='left', va='center', fontsize=8)
     
     # 2. Klant segmenten overzicht
     ax2 = axes[0, 1]
@@ -1471,7 +1484,7 @@ def gf18_klanten_belonen():
     
     segments = list(segment_counts.keys())
     counts = list(segment_counts.values())
-    colors = ['gold', 'silver', 'bronze', 'lightgreen', 'lightcoral']
+    colors = ['gold', 'silver', '#CD7F32', 'lightgreen', 'lightcoral']  # Bronze = #CD7F32
     
     bars2 = ax2.bar(segments, counts, color=colors)
     ax2.set_title('Aantal Klanten per Beloningssegment')
@@ -1485,34 +1498,109 @@ def gf18_klanten_belonen():
         ax2.text(bar.get_x() + bar.get_width()/2., height,
                 str(int(height)), ha='center', va='bottom')
     
-    # 3. Bestelfrequentie rising stars
+    # 3. Top 10 Loyale klanten
     ax3 = axes[1, 0]
     
-    if len(df18_rising_stars) > 0:
-        # Toon ontwikkeling rising stars
-        labels = [f"RS {i+1}" for i in range(min(5, len(df18_rising_stars)))]
-        orders = df18_rising_stars['aantal_orders'].head(5).values
-        dagen = df18_rising_stars['dagen_klant'].head(5).values
+    if len(df18_loyale_klanten) > 0:
+        # Top 10 loyale klanten
+        top10_loyaal = df18_loyale_klanten.head(10)
         
-        # Bereken orders per maand
-        orders_per_maand = (orders / (dagen / 30)).round(1)
+        # Maak korte labels
+        klant_labels = []
+        for email in top10_loyaal.index:
+            naam = email.split('@')[0]
+            if len(naam) > 12:
+                naam = naam[:10] + '..'
+            klant_labels.append(naam)
         
-        x = np.arange(len(labels))
-        width = 0.35
+        jaren = top10_loyaal['jaren_klant'].values
         
-        bars1 = ax3.bar(x - width/2, orders, width, label='Totale orders', color='lightblue')
-        bars2 = ax3.bar(x + width/2, orders_per_maand, width, label='Orders/maand', color='darkblue')
+        # Horizontale bar chart
+        y_pos = np.arange(len(klant_labels))
+        bars = ax3.barh(y_pos, jaren, color='silver', edgecolor='gray', linewidth=2)
+        ax3.set_yticks(y_pos)
+        ax3.set_yticklabels(klant_labels, fontsize=9)
+        ax3.set_xlabel('Jaren Klant')
+        ax3.set_title('Top 10 Loyale Klanten', fontsize=12, fontweight='bold')
+        ax3.grid(axis='x', alpha=0.3)
         
-        ax3.set_xlabel('Rising Stars')
-        ax3.set_xticks(x)
-        ax3.set_xticklabels(labels)
-        ax3.set_title('Rising Stars - Bestelgedrag')
-        ax3.legend()
-        ax3.grid(axis='y', alpha=0.3)
+        # Voeg details toe
+        for i, (bar, orders) in enumerate(zip(bars, top10_loyaal['aantal_orders'])):
+            width = bar.get_width()
+            freq = orders / width if width > 0 else 0
+            ax3.text(width + 0.05, bar.get_y() + bar.get_height()/2.,
+                    f'{width:.1f}j ({orders} ord, {freq:.1f}/jr)', 
+                    ha='left', va='center', fontsize=8)
     
-    # 4. Beloningsstrategieën
+    # 4. Rising Stars
     ax4 = axes[1, 1]
-    ax4.axis('off')
+    
+    if len(df18_rising_stars) > 0:
+        # Top 10 rising stars
+        top10_rising = df18_rising_stars.head(10)
+        
+        # Maak korte labels
+        klant_labels = []
+        for email in top10_rising.index:
+            naam = email.split('@')[0]
+            if len(naam) > 12:
+                naam = naam[:10] + '..'
+            klant_labels.append(naam)
+        
+        uitgaven = top10_rising['totale_uitgaven'].values
+        
+        # Horizontale bar chart
+        y_pos = np.arange(len(klant_labels))
+        bars = ax4.barh(y_pos, uitgaven, color='lightgreen', edgecolor='darkgreen', linewidth=2)
+        ax4.set_yticks(y_pos)
+        ax4.set_yticklabels(klant_labels, fontsize=9)
+        ax4.set_xlabel('Totale Uitgaven (€)')
+        ax4.set_title('Top 10 Rising Stars (<1 jaar)', fontsize=12, fontweight='bold')
+        ax4.grid(axis='x', alpha=0.3)
+        
+        # Voeg details toe
+        for i, (bar, dagen) in enumerate(zip(bars, top10_rising['dagen_klant'])):
+            width = bar.get_width()
+            ax4.text(width + 10, bar.get_y() + bar.get_height()/2.,
+                    f'€{width:.0f} ({dagen}d)', 
+                    ha='left', va='center', fontsize=8)
+    
+    # 5. Te reactiveren klanten
+    ax5 = axes[2, 0]
+    
+    if len(df18_te_reactiveren) > 0:
+        # Top 10 te reactiveren
+        top10_reactiveren = df18_te_reactiveren.head(10)
+        
+        # Maak korte labels
+        klant_labels = []
+        for email in top10_reactiveren.index:
+            naam = email.split('@')[0]
+            if len(naam) > 12:
+                naam = naam[:10] + '..'
+            klant_labels.append(naam)
+        
+        dagen_inactief = top10_reactiveren['dagen_sinds_laatste'].values
+        
+        # Horizontale bar chart
+        y_pos = np.arange(len(klant_labels))
+        bars = ax5.barh(y_pos, dagen_inactief, color='lightcoral', edgecolor='darkred', linewidth=2)
+        ax5.set_yticks(y_pos)
+        ax5.set_yticklabels(klant_labels, fontsize=9)
+        ax5.set_xlabel('Dagen Inactief')
+        ax5.set_title('Top 10 Te Reactiveren Klanten', fontsize=12, fontweight='bold')
+        ax5.grid(axis='x', alpha=0.3)
+        
+        # Voeg details toe
+        for i, (bar, uitgaven) in enumerate(zip(bars, top10_reactiveren['totale_uitgaven'])):
+            width = bar.get_width()
+            ax5.text(width + 10, bar.get_y() + bar.get_height()/2.,
+                    f'{width:.0f}d (€{uitgaven:.0f})', 
+                    ha='left', va='center', fontsize=8)
+    
+    # 6. Beloningsstrategieën
+    ax6 = axes[2, 1]
+    ax6.axis('off')
     
     # Bereken impact
     totaal_te_belonen = sum(counts[:4])  # Exclusief 'te reactiveren'
@@ -1548,7 +1636,7 @@ def gf18_klanten_belonen():
     ROI: Geschat 3-5x op beloningsinvestering
     """
     
-    ax4.text(0.05, 0.95, strategie_text, transform=ax4.transAxes,
+    ax6.text(0.05, 0.95, strategie_text, transform=ax6.transAxes,
              fontsize=10, verticalalignment='top',
              bbox=dict(boxstyle='round', facecolor='lightyellow', alpha=0.5))
     
