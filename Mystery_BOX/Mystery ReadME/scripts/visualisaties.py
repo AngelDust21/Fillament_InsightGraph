@@ -1513,7 +1513,8 @@ def gf18_klanten_belonen():
                 naam = naam[:10] + '..'
             klant_labels.append(naam)
         
-        jaren = top10_loyaal['jaren_klant'].values
+        # Bereken jaren uit dagen_klant
+        jaren = top10_loyaal['dagen_klant'].values / 365.0
         
         # Horizontale bar chart
         y_pos = np.arange(len(klant_labels))
@@ -1529,7 +1530,7 @@ def gf18_klanten_belonen():
             width = bar.get_width()
             freq = orders / width if width > 0 else 0
             ax3.text(width + 0.05, bar.get_y() + bar.get_height()/2.,
-                    f'{width:.1f}j ({orders} ord, {freq:.1f}/jr)', 
+                    f'{width:.1f}j ({int(orders)} ord, {freq:.1f}/jr)', 
                     ha='left', va='center', fontsize=8)
     
     # 4. Rising Stars

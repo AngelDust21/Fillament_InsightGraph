@@ -34,6 +34,12 @@ from visualisaties import (
     gf18_klanten_belonen
 )
 
+# Importeer code uitleg functies
+from code_uitleg import get_code_uitleg, get_alle_analyses, get_algemeen_concept, ALGEMENE_CONCEPTEN
+
+# Importeer grafiek uitleg functies
+from grafiek_uitleg import get_grafiek_uitleg, get_alle_visualisaties
+
 # Importeer basis data voor stats
 from data_analyse import df_bestellingen, df_filtered
 
@@ -102,6 +108,9 @@ categories = {
         "GF16: Customer Lifetime Value": gf16_klant_lifetime_value,
         "GF17: Winstgevendheid": gf17_winstgevendheid,
         "GF18: Klanten Belonen": gf18_klanten_belonen
+    },
+    "💻 Code Uitleg & Documentatie": {
+        "type": "code_uitleg"  # Speciale type voor code uitleg
     }
 }
 
@@ -111,11 +120,20 @@ selected_category = st.sidebar.selectbox(
     list(categories.keys())
 )
 
-# Selecteer specifieke visualisatie
-selected_viz = st.sidebar.radio(
-    "Selecteer een visualisatie:",
-    list(categories[selected_category].keys())
-)
+# Check of dit de code uitleg categorie is
+if selected_category == "💻 Code Uitleg & Documentatie":
+    # Toon code uitleg opties
+    uitleg_opties = ["🔬 Wetenschappelijke Code Uitleg"] + list(ALGEMENE_CONCEPTEN.keys())
+    selected_option = st.sidebar.radio(
+        "Selecteer een optie:",
+        uitleg_opties
+    )
+else:
+    # Selecteer specifieke visualisatie
+    selected_viz = st.sidebar.radio(
+        "Selecteer een visualisatie:",
+        list(categories[selected_category].keys())
+    )
 
 # Toon algemene statistieken in sidebar
 st.sidebar.markdown("---")
@@ -131,25 +149,155 @@ st.sidebar.metric("Totale Omzet", f"€{totale_omzet:,.2f}")
 st.sidebar.metric("Aantal Bestellingen", f"{aantal_bestellingen:,}")
 st.sidebar.metric("Gemiddelde Bestelling", f"€{gemiddelde_bestelling:,.2f}")
 
-# Toon geselecteerde visualisatie
-st.markdown(f"### {selected_viz}")
-fig = categories[selected_category][selected_viz]()
-st.pyplot(fig)
+# Toon geselecteerde inhoud
+if selected_category == "💻 Code Uitleg & Documentatie":
+    # Toon code uitleg
+    if selected_option == "🔬 Wetenschappelijke Code Uitleg":
+        # Laat gebruiker een analyse selecteren
+        st.markdown("### 🔬 Wetenschappelijke Code Documentatie")
+        
+        # Info box over de uitleg types met aangepaste styling
+        st.markdown("""
+        <div style='background-color: #4A0E4E; color: #F5F5F5; padding: 1rem; border-radius: 0.5rem; margin-bottom: 1rem; border-left: 4px solid #81689D;'>
+            <strong>💡 Kies je uitleg niveau:</strong><br>
+            • <strong>Voor Iedereen</strong>: Gebalanceerde uitleg met context<br>
+            • <strong>Wetenschappelijk</strong>: Volledig technisch met formules<br>
+            • <strong>Basis</strong>: Simpele taal met voorbeelden
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # Selecteer specifieke analyse
+        analyses = get_alle_analyses()
+        selected_analyse = st.selectbox(
+            "Selecteer een analyse voor uitleg:",
+            analyses
+        )
+        
+        # Haal code en uitleg op
+        uitleg_data = get_code_uitleg(selected_analyse)
+        
+        # Toon de analyse naam en bijbehorende grafiek
+        st.markdown(f"## {selected_analyse}")
+        st.info(f"**📊 {uitleg_data.get('grafiek', 'Grafiek informatie niet beschikbaar')}**")
+        
+        # Maak twee kolommen
+        col1, col2 = st.columns([1, 1])
+        
+        with col1:
+            st.markdown("### 💻 Code")
+            st.code(uitleg_data['code'], language='python')
+        
+        with col2:
+            st.markdown("### 📝 Uitleg")
+            st.markdown(uitleg_data.get('uitleg', 'Uitleg niet beschikbaar'))
+        
+    else:
+        # Toon algemeen concept
+        st.markdown(f"### 📚 {selected_option}")
+        
+        concept_uitleg = get_algemeen_concept(selected_option)
+        st.markdown(concept_uitleg)
+else:
+    # Toon normale visualisatie
+    st.markdown(f"### {selected_viz}")
+    
+    # Maak twee kolommen voor knoppen
+    col1, col2 = st.columns([1, 5])
+    
+    with col1:
+        # Bonus knop voor grafiek uitleg
+        if st.button("🎓 Grafiek Uitleg", key="uitleg_btn"):
+            st.session_state.show_uitleg = not st.session_state.get('show_uitleg', False)
+    
+    # Toon grafiek uitleg als de knop is ingedrukt
+    if st.session_state.get('show_uitleg', False):
+        with st.expander("📊 Uitgebreide Grafiek Uitleg", expanded=True):
+            uitleg = get_grafiek_uitleg(selected_viz)
+            
+            # Maak 4 secties voor de uitleg
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.markdown("### 👁️ Wat zie je?")
+                st.markdown(uitleg.get('wat_zie_je', 'Geen uitleg beschikbaar'))
+                
+                st.markdown("### 📖 Hoe lees je dit?")
+                st.markdown(uitleg.get('hoe_lezen', 'Geen uitleg beschikbaar'))
+            
+            with col2:
+                st.markdown("### 💡 Wat betekent dit?")
+                st.markdown(uitleg.get('betekenis', 'Geen uitleg beschikbaar'))
+                
+                st.markdown("### ✅ Conclusies & Acties")
+                st.markdown(uitleg.get('conclusies', 'Geen uitleg beschikbaar'))
+    
+    # Toon de grafiek
+    fig = categories[selected_category][selected_viz]()
+    st.pyplot(fig)
 
-# Download knop voor de visualisatie
-buf = io.BytesIO()
-fig.savefig(buf, format='png', dpi=300, bbox_inches='tight')
-buf.seek(0)
+    # Download knop voor de visualisatie
+    buf = io.BytesIO()
+    fig.savefig(buf, format='png', dpi=300, bbox_inches='tight')
+    buf.seek(0)
 
-st.download_button(
-    label="📥 Download Visualisatie",
-    data=buf,
-    file_name=f"{selected_viz.lower().replace(' ', '_')}.png",
-    mime="image/png"
-)
+    col1, col2, col3 = st.columns([1, 1, 3])
+    
+    with col1:
+        st.download_button(
+            label="📥 Download Grafiek",
+            data=buf,
+            file_name=f"{selected_viz.lower().replace(' ', '_')}.png",
+            mime="image/png"
+        )
+    
+    with col2:
+        # Knop om code uitleg te zien
+        if st.button("💻 Zie Code", key="code_btn"):
+            st.session_state.show_code = not st.session_state.get('show_code', False)
+    
+    # Toon code uitleg als gevraagd
+    if st.session_state.get('show_code', False):
+        with st.expander("💻 Code & Formules", expanded=True):
+            # Map visualisatie naam naar analyse naam
+            viz_to_analyse = {
+                "GF1: Top 20 Producten": "DF1: Top 20 Producten",
+                "GF2: Omzet Tijdlijn": "DF2: Omzet Tijdlijn",
+                "GF3: Geografische Spreiding": "DF3: Geografische Spreiding",
+                "GF4: Klanten Segmentatie": "DF4: Klanten Segmentatie (RFM)",
+                "GF5: Bestellingen Heatmap": "DF5: Bestellingen Heatmap",
+                "GF6: Product Categorieën": "DF6: Product Categorieën",
+                "GF7: Betaalmethoden": "DF7: Betaalmethoden",
+                "GF8: Kaas + Brood Combinaties": "DF8: Kaas + Brood Combinaties",
+                "GF9: Verkooppatronen": "DF9: Verkooppatronen",
+                "GF10: Prijsevolutie": "DF10: Prijsevolutie",
+                "GF11: Toekomstvoorspelling": "DF11: Voorspellingen",
+                "GF12: 55-jaar Voorspelling": "DF12: Lange Termijn",
+                "GF13: Seizoens & Feestdagen": "DF13: Seizoens & Feestdagen",
+                "GF14: Bestelpatronen": "DF14: Bestelpatronen",
+                "GF15: Cross-selling": "DF15: Product Combinaties (Market Basket)",
+                "GF16: Customer Lifetime Value": "DF16: Customer Lifetime Value",
+                "GF17: Winstgevendheid": "DF17: Winstgevendheid",
+                "GF18: Klanten Belonen": "DF18: Loyaliteitsprogramma"
+            }
+            
+            analyse_naam = viz_to_analyse.get(selected_viz, selected_viz)
+            code_data = get_code_uitleg(analyse_naam)
+            
+            # Toon welke grafiek dit is
+            st.info(f"**📊 {code_data.get('grafiek', 'Grafiek informatie niet beschikbaar')}**")
+            
+            col1, col2 = st.columns([1, 1])
+            
+            with col1:
+                st.markdown("#### 💻 Code")
+                st.code(code_data.get('code', 'Code niet beschikbaar'), language='python')
+            
+            with col2:
+                st.markdown("#### 📝 Uitleg")
+                st.markdown(code_data.get('uitleg', 'Uitleg niet beschikbaar'))
 
-# Sluit de figure om geheugen te besparen
-plt.close(fig)
+    # Sluit de figure om geheugen te besparen
+    plt.close(fig)
 
 # Footer
 st.markdown("---")
@@ -188,6 +336,8 @@ with st.expander("👨‍💻 Technische Details"):
     - **Data Analyse**: `data_analyse.py` - Voert alle berekeningen uit (DF1-DF18)
     - **Visualisaties**: `visualisaties.py` - Genereert alle grafieken (GF1-GF18)
     - **Web UI**: `streamlit_app.py` - Deze webinterface
+    - **Code Uitleg**: `code_uitleg.py` - Wetenschappelijke formule documentatie
+    - **Grafiek Uitleg**: `grafiek_uitleg.py` - Grafiek interpretatie gids
     
     ### Data:
     - Bron: `Bestellingen.csv`
