@@ -4,6 +4,13 @@
 # Core dependencies
 tabulate>=0.9.0          # Voor mooie CLI tabellen
 pyperclip>=1.8.2         # Voor clipboard functionaliteit in GUI
+pandas>=1.5.0            # Voor data analyse en CSV verwerking
+numpy>=1.21.0            # Voor numerieke berekeningen (pandas dependency)
+matplotlib>=3.5.0        # Voor grafieken en visualisaties
+seaborn>=0.11.0          # Voor mooie statistische grafieken
+scikit-learn>=1.1.0      # Voor machine learning en data analyse
+scipy>=1.8.0             # Voor wetenschappelijke berekeningen
+openpyxl>=3.0.0          # Voor Excel bestanden lezen/schrijven
 
 # Development dependencies (optioneel)
 pytest>=7.0.0            # Voor unit tests
