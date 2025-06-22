@@ -1,2 +1,0 @@
-timestamp,weight,material,material_cost,variable_cost,total_cost,sell_price,margin_pct,profit_amount,multicolor,abrasive,rush,day_of_week,hour_of_day,month,year,product_name,product_id,is_product
-2025-06-11T14:43:09.159147,5.0,PLA Basic,0.07,1.77,1.84,3.14,71.1,1.31,False,False,False,Wednesday,14,June,2025,Rups Flexi,202506110112,True

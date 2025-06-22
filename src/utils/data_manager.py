@@ -28,6 +28,8 @@ from datetime import datetime
 from typing import List, Dict, Any, Optional, Tuple
 import pandas as pd
 from collections import defaultdict
+import threading
+import time
 
 class DataManager:
     """Centrale manager voor alle data operaties.
@@ -58,8 +60,12 @@ class DataManager:
         for directory in [self.calc_dir, self.product_dir, self.analysis_dir]:
             directory.mkdir(parents=True, exist_ok=True)
             
-        # Master CSV voor alle berekeningen
-        self.master_calc_file = self.base_dir / "master_calculations.csv"
+        # Paden naar de CSV bestanden
+        self.master_calc_file = self.base_dir / "producten" / "master_calculations.csv"
+        
+        # Threading lock voor file operations
+        self._file_lock = threading.Lock()
+        print("DEBUG: DataManager initialized with thread-safe file locking")
         
     def export_calculation(self, calc_data: Dict[str, Any]) -> str:
         """Export een enkele berekening naar CSV.
@@ -140,86 +146,181 @@ class DataManager:
         
         return str(filepath)
         
-    def log_calculation_simple(self, calc_data: Dict[str, Any]) -> None:
-        """Log een uitgebreide berekening naar het logboek (calculation_log.csv).
+    def log_and_export_calculation(self, calc_data: Dict[str, Any]) -> str:
+        """Gecombineerde functie die zowel naar calculation_log.csv als master_calculations.csv schrijft.
         
-        Dit is een uitgebreid logboek voor debugging en analyse, met ALLE details
-        behalve product naam/ID (die zijn voor master database).
+        Dit voorkomt race conditions door beide writes in één atomic operatie uit te voeren.
         
         Parameters:
         ----------
         calc_data : Dict[str, Any]
-            Dictionary met ALLE berekening data inclusief configuratie
+            Dictionary met berekening data inclusief config voor logging
+            
+        Returns:
+        -------
+        str
+            Pad naar individuele calculation CSV
         """
-        log_file = self.base_dir / "calculation_log.csv"
-        print(f"DEBUG: Logging naar: {log_file.absolute()}")
-        
-        # Check of file bestaat voor header
-        file_exists = log_file.exists()
-        
-        # Extract alle data voor uitgebreid logboek
+        # Maak eerst individuele CSV (geen concurrency issues)
         timestamp = datetime.now()
+        filename = f"calc_{timestamp.strftime('%Y%m%d_%H%M%S')}.csv"
+        filepath = self.calc_dir / filename
         
-        with open(log_file, 'a', newline='', encoding='utf-8') as f:
-            writer = csv.writer(f)
+        # Enhanced data voor beide bestanden
+        enhanced_data = calc_data.copy()
+        enhanced_data['export_timestamp'] = timestamp.isoformat()
+        enhanced_data['day_of_week'] = timestamp.strftime('%A')
+        enhanced_data['hour_of_day'] = timestamp.hour
+        enhanced_data['month'] = timestamp.strftime('%B')
+        enhanced_data['year'] = timestamp.year
+        
+        # Extract options indien aanwezig
+        options = calc_data.get('options', {})
+        enhanced_data['multicolor'] = options.get('multicolor', False)
+        enhanced_data['abrasive'] = options.get('abrasive', False)
+        enhanced_data['rush'] = options.get('rush', False)
+        
+        # Schrijf individuele CSV (geen locking nodig, unieke file)
+        headers = [
+            'timestamp', 'weight', 'material', 'material_cost', 'variable_cost',
+            'total_cost', 'sell_price', 'margin_pct', 'profit_amount',
+            'multicolor', 'abrasive', 'rush', 'day_of_week', 'hour_of_day',
+            'month', 'year', 'product_name', 'product_id', 'is_product'
+        ]
+        
+        with open(filepath, 'w', newline='', encoding='utf-8') as f:
+            writer = csv.DictWriter(f, fieldnames=headers)
+            writer.writeheader()
+            writer.writerow({
+                'timestamp': enhanced_data.get('export_timestamp', ''),
+                'weight': enhanced_data.get('weight', 0),
+                'material': enhanced_data.get('material', ''),
+                'material_cost': round(enhanced_data.get('material_cost', 0), 2),
+                'variable_cost': round(enhanced_data.get('variable_cost', 0), 2),
+                'total_cost': round(enhanced_data.get('total_cost', 0), 2),
+                'sell_price': round(enhanced_data.get('sell_price', 0), 2),
+                'margin_pct': round(enhanced_data.get('margin_pct', 0), 1),
+                'profit_amount': round(enhanced_data.get('sell_price', 0) - enhanced_data.get('total_cost', 0), 2),
+                'multicolor': enhanced_data.get('multicolor', False),
+                'abrasive': enhanced_data.get('abrasive', False),
+                'rush': enhanced_data.get('rush', False),
+                'day_of_week': enhanced_data.get('day_of_week', ''),
+                'hour_of_day': enhanced_data.get('hour_of_day', 0),
+                'month': enhanced_data.get('month', ''),
+                'year': enhanced_data.get('year', 0),
+                'product_name': enhanced_data.get('product_name', ''),
+                'product_id': enhanced_data.get('product_id', ''),
+                'is_product': enhanced_data.get('is_product', False)
+            })
+        
+        # Nu atomic write naar beide log bestanden met locking
+        with self._file_lock:
+            # 1. Schrijf naar calculation_log.csv (uitgebreide versie)
+            log_file = self.base_dir / "berekeningen" / "calculation_log.csv"
+            log_exists = log_file.exists()
             
-            # Uitgebreide headers voor debugging
-            headers = [
-                'timestamp', 'date', 'time', 'day_of_week', 'hour_of_day',
-                'weight_g', 'material', 'print_hours',
-                'material_cost', 'variable_cost', 'total_cost', 'sell_price', 
-                'margin_pct', 'profit_amount',
-                'multicolor', 'abrasive', 'rush',
-                'printer_power_kw', 'energy_price', 'labour_cost', 'monitoring_pct',
-                'maintenance_cost', 'overhead_year', 'annual_hours',
-                'markup_material', 'markup_variable', 'spoed_surcharge',
-                'abrasive_surcharge', 'color_fee_min', 'color_fee_max',
-                'auto_time_per_gram', 'auto_hours_used'
-            ]
+            with open(log_file, 'a', newline='', encoding='utf-8') as f:
+                writer = csv.writer(f)
+                
+                # Headers voor log file
+                if not log_exists:
+                    log_headers = [
+                        'timestamp', 'date', 'time', 'day_of_week', 'hour_of_day',
+                        'weight_g', 'material', 'print_hours',
+                        'material_cost', 'variable_cost', 'total_cost', 'sell_price', 
+                        'margin_pct', 'profit_amount',
+                        'multicolor', 'abrasive', 'rush',
+                        'printer_power_kw', 'energy_price', 'labour_cost', 'monitoring_pct',
+                        'maintenance_cost', 'overhead_year', 'annual_hours',
+                        'markup_material', 'markup_variable', 'spoed_surcharge',
+                        'abrasive_surcharge', 'color_fee_min', 'color_fee_max',
+                        'auto_time_per_gram', 'auto_hours_used'
+                    ]
+                    writer.writerow(log_headers)
+                
+                # Extract config
+                config = calc_data.get('config', {})
+                
+                # Schrijf log entry
+                writer.writerow([
+                    timestamp.strftime('%Y-%m-%d %H:%M:%S'),
+                    timestamp.strftime('%Y-%m-%d'),
+                    timestamp.strftime('%H:%M:%S'),
+                    timestamp.strftime('%A'),
+                    timestamp.hour,
+                    round(calc_data.get('weight', 0), 1),
+                    calc_data.get('material', ''),
+                    round(calc_data.get('print_hours', 0), 2),
+                    round(calc_data.get('material_cost', 0), 2),
+                    round(calc_data.get('variable_cost', 0), 2),
+                    round(calc_data.get('total_cost', 0), 2),
+                    round(calc_data.get('sell_price', 0), 2),
+                    round(calc_data.get('margin_pct', 0), 1),
+                    round(calc_data.get('sell_price', 0) - calc_data.get('total_cost', 0), 2),
+                    options.get('multicolor', False),
+                    options.get('abrasive', False),
+                    options.get('rush', False),
+                    config.get('printer_power', ''),
+                    config.get('energy_price', ''),
+                    config.get('labour_cost', ''),
+                    config.get('monitoring_pct', ''),
+                    config.get('maintenance_cost', ''),
+                    config.get('overhead_year', ''),
+                    config.get('annual_hours', ''),
+                    config.get('markup_material', ''),
+                    config.get('markup_variable', ''),
+                    config.get('spoed_surcharge', ''),
+                    config.get('abrasive_surcharge', ''),
+                    config.get('color_fee_min', ''),
+                    config.get('color_fee_max', ''),
+                    config.get('auto_time_per_gram', ''),
+                    calc_data.get('auto_hours_used', False)
+                ])
+                f.flush()
+                os.fsync(f.fileno())
             
-            # Schrijf header alleen bij nieuwe file
-            if not file_exists:
-                writer.writerow(headers)
+            # 2. Schrijf naar master_calculations.csv
+            master_exists = self.master_calc_file.exists()
             
-            # Extract options
-            options = calc_data.get('options', {})
-            config = calc_data.get('config', {})
-            
-            # Schrijf uitgebreide log entry
-            writer.writerow([
-                timestamp.strftime('%Y-%m-%d %H:%M:%S'),
-                timestamp.strftime('%Y-%m-%d'),
-                timestamp.strftime('%H:%M:%S'),
-                timestamp.strftime('%A'),
-                timestamp.hour,
-                round(calc_data.get('weight', 0), 1),
-                calc_data.get('material', ''),
-                round(calc_data.get('print_hours', 0), 2),
-                round(calc_data.get('material_cost', 0), 2),
-                round(calc_data.get('variable_cost', 0), 2),
-                round(calc_data.get('total_cost', 0), 2),
-                round(calc_data.get('sell_price', 0), 2),
-                round(calc_data.get('margin_pct', 0), 1),
-                round(calc_data.get('sell_price', 0) - calc_data.get('total_cost', 0), 2),
-                options.get('multicolor', False),
-                options.get('abrasive', False),
-                options.get('rush', False),
-                config.get('printer_power', ''),
-                config.get('energy_price', ''),
-                config.get('labour_cost', ''),
-                config.get('monitoring_pct', ''),
-                config.get('maintenance_cost', ''),
-                config.get('overhead_year', ''),
-                config.get('annual_hours', ''),
-                config.get('markup_material', ''),
-                config.get('markup_variable', ''),
-                config.get('spoed_surcharge', ''),
-                config.get('abrasive_surcharge', ''),
-                config.get('color_fee_min', ''),
-                config.get('color_fee_max', ''),
-                config.get('auto_time_per_gram', ''),
-                calc_data.get('auto_hours_used', False)
-            ])
+            with open(self.master_calc_file, 'a', newline='', encoding='utf-8') as f:
+                writer = csv.DictWriter(f, fieldnames=headers)
+                
+                if not master_exists:
+                    writer.writeheader()
+                    
+                writer.writerow({
+                    'timestamp': enhanced_data.get('export_timestamp', ''),
+                    'weight': enhanced_data.get('weight', 0),
+                    'material': enhanced_data.get('material', ''),
+                    'material_cost': round(enhanced_data.get('material_cost', 0), 2),
+                    'variable_cost': round(enhanced_data.get('variable_cost', 0), 2),
+                    'total_cost': round(enhanced_data.get('total_cost', 0), 2),
+                    'sell_price': round(enhanced_data.get('sell_price', 0), 2),
+                    'margin_pct': round(enhanced_data.get('margin_pct', 0), 1),
+                    'profit_amount': round(enhanced_data.get('sell_price', 0) - enhanced_data.get('total_cost', 0), 2),
+                    'multicolor': enhanced_data.get('multicolor', False),
+                    'abrasive': enhanced_data.get('abrasive', False),
+                    'rush': enhanced_data.get('rush', False),
+                    'day_of_week': enhanced_data.get('day_of_week', ''),
+                    'hour_of_day': enhanced_data.get('hour_of_day', 0),
+                    'month': enhanced_data.get('month', ''),
+                    'year': enhanced_data.get('year', 0),
+                    'product_name': enhanced_data.get('product_name', ''),
+                    'product_id': enhanced_data.get('product_id', ''),
+                    'is_product': enhanced_data.get('is_product', False)
+                })
+                f.flush()
+                os.fsync(f.fileno())
+        
+        print(f"DEBUG: Successfully logged calculation to both files")
+        return str(filepath)
+        
+    def log_calculation_simple(self, calc_data: Dict[str, Any]) -> None:
+        """Legacy wrapper voor backward compatibility.
+        
+        Roept de nieuwe gecombineerde functie aan.
+        """
+        self.log_and_export_calculation(calc_data)
         
     def export_product(self, product_data: Dict[str, Any]) -> None:
         """Export een product als berekening naar het master bestand.
@@ -258,6 +359,7 @@ class DataManager:
         """Voeg berekening toe aan master CSV bestand.
         
         Dit bestand bevat ALLE berekeningen voor makkelijke analyse.
+        Thread-safe implementatie met file locking.
         """
         headers = [
             'timestamp', 'weight', 'material', 'material_cost', 'variable_cost',
@@ -266,38 +368,63 @@ class DataManager:
             'month', 'year', 'product_name', 'product_id', 'is_product'
         ]
         
-        # Check of file bestaat
-        file_exists = self.master_calc_file.exists()
+        # Gebruik thread lock voor file operaties
+        max_retries = 3
+        retry_delay = 0.1  # 100ms
         
-        with open(self.master_calc_file, 'a', newline='', encoding='utf-8') as f:
-            writer = csv.DictWriter(f, fieldnames=headers)
-            
-            # Schrijf header alleen bij nieuwe file
-            if not file_exists:
-                writer.writeheader()
-                
-            writer.writerow({
-                'timestamp': calc_data.get('export_timestamp', ''),
-                'weight': calc_data.get('weight', 0),
-                'material': calc_data.get('material', ''),
-                'material_cost': round(calc_data.get('material_cost', 0), 2),
-                'variable_cost': round(calc_data.get('variable_cost', 0), 2),
-                'total_cost': round(calc_data.get('total_cost', 0), 2),
-                'sell_price': round(calc_data.get('sell_price', 0), 2),
-                'margin_pct': round(calc_data.get('margin_pct', 0), 1),
-                'profit_amount': round(calc_data.get('sell_price', 0) - calc_data.get('total_cost', 0), 2),
-                'multicolor': calc_data.get('multicolor', False),
-                'abrasive': calc_data.get('abrasive', False),
-                'rush': calc_data.get('rush', False),
-                'day_of_week': calc_data.get('day_of_week', ''),
-                'hour_of_day': calc_data.get('hour_of_day', 0),
-                'month': calc_data.get('month', ''),
-                'year': calc_data.get('year', 0),
-                'product_name': calc_data.get('product_name', ''),
-                'product_id': calc_data.get('product_id', ''),
-                'is_product': calc_data.get('is_product', False)
-            })
-            
+        for attempt in range(max_retries):
+            try:
+                with self._file_lock:
+                    # Check of file bestaat
+                    file_exists = self.master_calc_file.exists()
+                    
+                    # Open met exclusive write mode
+                    with open(self.master_calc_file, 'a', newline='', encoding='utf-8') as f:
+                        writer = csv.DictWriter(f, fieldnames=headers)
+                        
+                        # Schrijf header alleen bij nieuwe file
+                        if not file_exists:
+                            writer.writeheader()
+                            
+                        writer.writerow({
+                            'timestamp': calc_data.get('export_timestamp', ''),
+                            'weight': calc_data.get('weight', 0),
+                            'material': calc_data.get('material', ''),
+                            'material_cost': round(calc_data.get('material_cost', 0), 2),
+                            'variable_cost': round(calc_data.get('variable_cost', 0), 2),
+                            'total_cost': round(calc_data.get('total_cost', 0), 2),
+                            'sell_price': round(calc_data.get('sell_price', 0), 2),
+                            'margin_pct': round(calc_data.get('margin_pct', 0), 1),
+                            'profit_amount': round(calc_data.get('sell_price', 0) - calc_data.get('total_cost', 0), 2),
+                            'multicolor': calc_data.get('multicolor', False),
+                            'abrasive': calc_data.get('abrasive', False),
+                            'rush': calc_data.get('rush', False),
+                            'day_of_week': calc_data.get('day_of_week', ''),
+                            'hour_of_day': calc_data.get('hour_of_day', 0),
+                            'month': calc_data.get('month', ''),
+                            'year': calc_data.get('year', 0),
+                            'product_name': calc_data.get('product_name', ''),
+                            'product_id': calc_data.get('product_id', ''),
+                            'is_product': calc_data.get('is_product', False)
+                        })
+                        
+                        # Ensure data is written to disk
+                        f.flush()
+                        os.fsync(f.fileno())
+                    
+                    # Success - break uit retry loop
+                    if attempt > 0:
+                        print(f"DEBUG: Successfully wrote to master_calculations.csv after {attempt + 1} attempts")
+                    break
+                    
+            except Exception as e:
+                if attempt < max_retries - 1:
+                    print(f"DEBUG: Retry {attempt + 1}/{max_retries} for master_calculations.csv: {e}")
+                    time.sleep(retry_delay * (attempt + 1))  # Exponential backoff
+                else:
+                    print(f"ERROR: Failed to write to master_calculations.csv after {max_retries} attempts: {e}")
+                    raise
+        
     def import_calculations(self, from_master: bool = True) -> pd.DataFrame:
         """Importeer alle berekeningen voor analyse.
         
@@ -313,7 +440,11 @@ class DataManager:
             DataFrame met alle berekeningen
         """
         if from_master and self.master_calc_file.exists():
-            return pd.read_csv(self.master_calc_file)
+            df = pd.read_csv(self.master_calc_file)
+            # Convert timestamp to datetime with mixed format support
+            if 'timestamp' in df.columns:
+                df['timestamp'] = pd.to_datetime(df['timestamp'], format='mixed')
+            return df
         else:
             # Combineer alle individuele CSV files
             all_data = []
@@ -328,7 +459,7 @@ class DataManager:
             if all_data:
                 combined_df = pd.concat(all_data, ignore_index=True)
                 # Sorteer op timestamp
-                combined_df['timestamp'] = pd.to_datetime(combined_df['timestamp'])
+                combined_df['timestamp'] = pd.to_datetime(combined_df['timestamp'], format='mixed')
                 combined_df.sort_values('timestamp', inplace=True)
                 return combined_df
             else:

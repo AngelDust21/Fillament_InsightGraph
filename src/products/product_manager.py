@@ -22,13 +22,15 @@ class ProductManager:
     
     def __init__(self, storage_path: Optional[str] = None, auto_save: bool = True):
         """Initialiseer met pad naar master_calculations.csv"""
-        # Bepaal het absolute pad naar de bedrijfsleider directory
-        # Dit werkt ongeacht van waar je de GUI start!
-        current_file = os.path.abspath(__file__)
-        bedrijfsleider_dir = os.path.dirname(os.path.dirname(os.path.dirname(current_file)))
+        # Zoek het bedrijfsleider directory
+        bedrijfsleider_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         
-        # Nu altijd het juiste pad naar master_calculations.csv
-        self.csv_path = os.path.join(bedrijfsleider_dir, "exports", "master_calculations.csv")
+        # Nu altijd het juiste pad naar master_calculations.csv in nieuwe structuur
+        self.csv_path = os.path.join(bedrijfsleider_dir, "exports", "producten", "master_calculations.csv")
+        
+        # Maak directory aan als die niet bestaat
+        os.makedirs(os.path.dirname(self.csv_path), exist_ok=True)
+        
         self._cache: Dict[str, Product] = {}
         
         print(f"📁 Zoek CSV in: {self.csv_path}")

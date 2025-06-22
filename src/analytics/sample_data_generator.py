@@ -128,7 +128,7 @@ def generate_sample_data(num_records: int = 50) -> List[Dict[str, Any]]:
     return data
 
 
-def write_sample_data(output_file: str = 'calculation_log.csv') -> None:
+def write_sample_data(output_file: str = 'exports/berekeningen/calculation_log.csv') -> None:
     """Schrijf sample data naar CSV bestand."""
     # Genereer data
     data = generate_sample_data(50)

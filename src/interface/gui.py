@@ -1615,7 +1615,9 @@ class H2DCalculatorGUI:
                     'auto_hours_used': self.auto_hours_var.get()
                 }
                 
+                # Log calculation - deze schrijft nu automatisch naar beide bestanden
                 self.data_manager.log_calculation_simple(log_data)
+                print("DEBUG: Data logged to both calculation_log.csv and master_calculations.csv")
                 
             except Exception as e:
                 # Silent fail - logboek is niet kritisch
@@ -2351,7 +2353,7 @@ Totale orders: {stats['total_orders']}"""
             
             tk.Label(
                 info_frame,
-                text="Scroll omlaag om alle 6 grafieken te bekijken • Gebaseerd op data uit master_calculations.csv",
+                text="Scroll omlaag om alle 6 grafieken te bekijken • Gebaseerd op data uit producten/master_calculations.csv",
                 font=("Arial", 10, "italic"),
                 bg=self.colors['bg'],
                 fg=self.colors['text']

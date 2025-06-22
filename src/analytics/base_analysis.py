@@ -16,6 +16,7 @@ import pandas as pd
 from abc import ABC, abstractmethod
 from typing import Dict, Any, Optional
 import os
+import time
 
 
 class BaseAnalysis(ABC):
@@ -41,6 +42,8 @@ class BaseAnalysis(ABC):
         self.parent_frame = parent_frame
         self.colors = colors or self._default_colors()
         self._data_cache = None
+        self._complete_data_cache = None
+        self.cache_duration = 300  # 5 minuten cache
         self.widgets = {}
         
     def _default_colors(self) -> Dict[str, str]:
@@ -54,128 +57,151 @@ class BaseAnalysis(ABC):
             'light_gray': '#e8e8e8',
             'white': '#ffffff'
         }
+    
+    def _is_cache_valid(self) -> bool:
+        """Check of de data cache nog geldig is."""
+        if self._data_cache is None:
+            return False
+        return (time.time() - self._data_cache['timestamp']) < self.cache_duration
+    
+    def _is_complete_cache_valid(self) -> bool:
+        """Check of de complete data cache nog geldig is."""
+        if self._complete_data_cache is None:
+            return False
+        return (time.time() - self._complete_data_cache['timestamp']) < self.cache_duration
+    
+    def _get_cache_age(self) -> float:
+        """Krijg leeftijd van de cache in seconden."""
+        if self._data_cache is None:
+            return float('inf')
+        return time.time() - self._data_cache['timestamp']
+    
+    def _get_complete_cache_age(self) -> float:
+        """Krijg leeftijd van de complete cache in seconden."""
+        if self._complete_data_cache is None:
+            return float('inf')
+        return time.time() - self._complete_data_cache['timestamp']
         
-    def load_data(self, force_reload: bool = False) -> pd.DataFrame:
+    def load_data(self) -> Optional[pd.DataFrame]:
         """Laad data uit master_calculations.csv met caching.
         
-        Parameters:
-        ----------
-        force_reload : bool
-            Force nieuwe data load, negeer cache
-            
+        Dit is de primaire methode voor de meeste analyses. Laadt een subset van kolommen
+        die relevant zijn voor visualisaties.
+        
         Returns:
         -------
-        pd.DataFrame
-            DataFrame met berekeningen
+        Optional[pd.DataFrame]
+            DataFrame met data of None als laden mislukt
         """
-        if self._data_cache is None or force_reload:
-            try:
-                # Laad master calculations uit exports folder
-                # Check of base_dir al 'exports' eindigt
-                if hasattr(self.data_manager, 'base_dir'):
-                    if isinstance(self.data_manager.base_dir, str):
-                        base_dir = self.data_manager.base_dir
-                    else:
-                        base_dir = str(self.data_manager.base_dir)
-                    
-                    if base_dir.endswith('exports'):
-                        log_path = os.path.join(base_dir, 'master_calculations.csv')
-                    else:
-                        log_path = os.path.join(base_dir, 'exports', 'master_calculations.csv')
-                else:
-                    # Fallback
-                    log_path = os.path.join(os.path.dirname(__file__), '..', '..', 'exports', 'master_calculations.csv')
-                
-                if os.path.exists(log_path):
-                    self._data_cache = pd.read_csv(log_path)
-                    # Converteer timestamp naar datetime met flexibele parsing
-                    if 'timestamp' in self._data_cache.columns:
-                        try:
-                            # Gebruik 'mixed' format voor verschillende timestamp formaten
-                            self._data_cache['timestamp'] = pd.to_datetime(
-                                self._data_cache['timestamp'], 
-                                format='mixed',
-                                utc=False
-                            )
-                        except Exception as e:
-                            print(f"DEBUG: Timestamp parsing error: {e}")
-                            # Fallback: probeer te parsen zonder format
-                            self._data_cache['timestamp'] = pd.to_datetime(
-                                self._data_cache['timestamp']
-                            )
-                else:
-                    # Leeg DataFrame met juiste kolommen
-                    self._data_cache = pd.DataFrame()
-                    
-            except Exception as e:
-                print(f"Fout bij laden data: {e}")
-                self._data_cache = pd.DataFrame()
-                
-        return self._data_cache
+        # Check cache eerst
+        if self._is_cache_valid():
+            print(f"Using cached data (age: {self._get_cache_age():.1f} seconds)")
+            return self._data_cache['data'].copy()
         
-    def load_complete_data(self, force_reload: bool = False) -> pd.DataFrame:
+        # Bepaal pad naar master_calculations.csv
+        # Start vanaf de huidige file locatie
+        current_file = os.path.abspath(__file__)
+        
+        # Ga naar de root van het project (waar exports folder is)
+        # Van src/analytics/base_analysis.py naar root is 2 niveau's omhoog
+        project_root = os.path.dirname(os.path.dirname(os.path.dirname(current_file)))
+        
+        # Pad naar master_calculations.csv
+        log_path = os.path.join(project_root, 'exports', 'producten', 'master_calculations.csv')
+        
+        print(f"DEBUG: Project root: {project_root}")
+        print(f"DEBUG: Looking for master_calculations.csv at: {log_path}")
+        print(f"DEBUG: File exists: {os.path.exists(log_path)}")
+        
+        if os.path.exists(log_path):
+            try:
+                df = pd.read_csv(log_path)
+                print(f"Loaded {len(df)} rows from master_calculations.csv")
+                
+                # Converteer timestamp naar datetime als die bestaat
+                if 'timestamp' in df.columns:
+                    # Gebruik format='mixed' om verschillende timestamp formaten te ondersteunen
+                    df['timestamp'] = pd.to_datetime(df['timestamp'], format='mixed')
+                
+                # Update cache
+                self._data_cache = {
+                    'data': df,
+                    'timestamp': time.time()
+                }
+                
+                return df.copy()
+            except Exception as e:
+                print(f"Error loading master_calculations.csv: {e}")
+                return pd.DataFrame()  # Return lege DataFrame in plaats van None
+        else:
+            print(f"master_calculations.csv not found at: {log_path}")
+            # Probeer het bestand te creëren als het niet bestaat
+            os.makedirs(os.path.dirname(log_path), exist_ok=True)
+            # Maak een lege CSV met de juiste headers
+            empty_df = pd.DataFrame(columns=[
+                'timestamp', 'weight', 'material', 'material_cost', 
+                'variable_cost', 'total_cost', 'sell_price', 'margin_pct',
+                'profit_amount', 'multicolor', 'abrasive', 'rush',
+                'day_of_week', 'hour_of_day', 'month', 'year', 
+                'product_name', 'product_id', 'is_product'
+            ])
+            empty_df.to_csv(log_path, index=False)
+            print(f"Created empty master_calculations.csv at: {log_path}")
+            return pd.DataFrame()  # Return lege DataFrame
+        
+    def load_complete_data(self) -> Optional[pd.DataFrame]:
         """Laad complete data uit calculation_log.csv.
         
         Deze methode laadt de volledige calculation_log.csv die alle 31 kolommen bevat,
         in tegenstelling tot master_calculations.csv die een subset is.
         
-        Parameters:
-        ----------
-        force_reload : bool
-            Force nieuwe data load, negeer cache
-            
         Returns:
         -------
-        pd.DataFrame
-            DataFrame met complete berekeningen inclusief print_hours etc.
+        Optional[pd.DataFrame]
+            DataFrame met complete data of None als laden mislukt
         """
-        cache_key = '_complete_data_cache'
+        # Check cache eerst
+        if self._is_complete_cache_valid():
+            print(f"Using cached complete data (age: {self._get_complete_cache_age():.1f} seconds)")
+            return self._complete_data_cache['data'].copy()
         
-        if not hasattr(self, cache_key) or getattr(self, cache_key) is None or force_reload:
+        # Bepaal pad naar calculation_log.csv
+        # Start vanaf de huidige file locatie
+        current_file = os.path.abspath(__file__)
+        
+        # Ga naar de root van het project (waar exports folder is)
+        # Van src/analytics/base_analysis.py naar root is 2 niveau's omhoog
+        project_root = os.path.dirname(os.path.dirname(os.path.dirname(current_file)))
+        
+        # Pad naar calculation_log.csv
+        log_path = os.path.join(project_root, 'exports', 'berekeningen', 'calculation_log.csv')
+        
+        print(f"DEBUG: Project root: {project_root}")
+        print(f"DEBUG: Looking for calculation_log.csv at: {log_path}")
+        print(f"DEBUG: File exists: {os.path.exists(log_path)}")
+        
+        if os.path.exists(log_path):
             try:
-                # Bepaal pad naar calculation_log.csv
-                if hasattr(self.data_manager, 'base_dir'):
-                    if isinstance(self.data_manager.base_dir, str):
-                        base_dir = self.data_manager.base_dir
-                    else:
-                        base_dir = str(self.data_manager.base_dir)
-                    
-                    if base_dir.endswith('exports'):
-                        log_path = os.path.join(base_dir, 'calculation_log.csv')
-                    else:
-                        log_path = os.path.join(base_dir, 'exports', 'calculation_log.csv')
-                else:
-                    # Fallback
-                    log_path = os.path.join(os.path.dirname(__file__), '..', '..', 'exports', 'calculation_log.csv')
+                df = pd.read_csv(log_path)
                 
-                if os.path.exists(log_path):
-                    setattr(self, cache_key, pd.read_csv(log_path))
-                    df = getattr(self, cache_key)
-                    
-                    # Converteer timestamp naar datetime
-                    if 'timestamp' in df.columns:
-                        try:
-                            df['timestamp'] = pd.to_datetime(df['timestamp'], format='mixed', utc=False)
-                        except:
-                            df['timestamp'] = pd.to_datetime(df['timestamp'])
-                    
-                    # Parse date kolom ook
-                    if 'date' in df.columns:
-                        try:
-                            df['date'] = pd.to_datetime(df['date'])
-                        except:
-                            pass
-                            
-                    print(f"Loaded {len(df)} rows from calculation_log.csv with {len(df.columns)} columns")
-                else:
-                    print(f"calculation_log.csv not found at: {log_path}")
-                    setattr(self, cache_key, pd.DataFrame())
-                    
+                # Converteer timestamp naar datetime
+                df['timestamp'] = pd.to_datetime(df['timestamp'], format='mixed')
+                
+                print(f"Loaded {len(df)} rows from calculation_log.csv with {len(df.columns)} columns")
+                
+                # Update cache
+                self._complete_data_cache = {
+                    'data': df,
+                    'timestamp': time.time()
+                }
+                
+                return df.copy()
             except Exception as e:
-                print(f"Fout bij laden complete data: {e}")
-                setattr(self, cache_key, pd.DataFrame())
-                
-        return getattr(self, cache_key)
+                print(f"Error loading calculation_log.csv: {e}")
+                return pd.DataFrame()  # Return lege DataFrame in plaats van None
+        else:
+            print(f"calculation_log.csv not found at: {log_path}")
+            return pd.DataFrame()  # Return lege DataFrame in plaats van None
         
     def create_widgets(self, parent: tk.Frame) -> None:
         """Creëer GUI widgets voor deze analyse.
@@ -236,7 +262,7 @@ class BaseAnalysis(ABC):
         """Vernieuw de analyse met nieuwe data."""
         try:
             # Force reload data
-            self.load_data(force_reload=True)
+            self.load_data()
             
             # Update visualisaties
             self.update_analysis()

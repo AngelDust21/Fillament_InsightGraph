@@ -35,41 +35,44 @@ class MateriaalGebruik(BaseAnalysis):
         """Return titel voor deze analyse."""
         return "🎨 Materiaal Gebruik Analyse"
         
-    def get_data(self):
+    def load_data(self):
         """Laad master_calculations.csv."""
         try:
-            # Direct pad naar master_calculations.csv
-            if hasattr(self.data_manager, 'base_dir'):
-                if isinstance(self.data_manager.base_dir, str):
-                    base_dir = self.data_manager.base_dir
-                else:
-                    base_dir = str(self.data_manager.base_dir)
-                
-                if base_dir.endswith('exports'):
-                    master_path = os.path.join(base_dir, 'master_calculations.csv')
-                else:
-                    master_path = os.path.join(base_dir, 'exports', 'master_calculations.csv')
-            else:
-                # Fallback
-                master_path = os.path.join(os.path.dirname(__file__), '..', '..', '..', 'exports', 'master_calculations.csv')
+            # Start vanaf de huidige file locatie
+            current_file = os.path.abspath(__file__)
+            
+            # Ga naar de root van het project (waar exports folder is)
+            # Van src/analytics/basis/materiaal_gebruik.py naar root is 3 niveau's omhoog
+            project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(current_file))))
+            
+            # Pad naar master_calculations.csv
+            master_path = os.path.join(project_root, 'exports', 'producten', 'master_calculations.csv')
+            
+            print(f"DEBUG: Project root: {project_root}")
+            print(f"DEBUG: Looking for master_calculations.csv at: {master_path}")
+            print(f"DEBUG: File exists: {os.path.exists(master_path)}")
             
             if os.path.exists(master_path):
                 df = pd.read_csv(master_path)
+                print(f"Loaded {len(df)} rows from master_calculations.csv")
                 # Rename kolom voor compatibiliteit
                 if 'weight' in df.columns:
                     df['weight_g'] = df['weight']
                 return df
             else:
+                print(f"master_calculations.csv not found at: {master_path}")
                 return pd.DataFrame()
                 
         except Exception as e:
-            print(f"Fout bij laden master_calculations: {e}")
+            print(f"Error loading data: {e}")
+            import traceback
+            traceback.print_exc()
             return pd.DataFrame()
             
     def create_analysis_widgets(self):
         """Creëer de analyse widgets."""
         # Haal data op
-        df = self.get_data()
+        df = self.load_data()
         
         if df.empty:
             self.show_no_data_message()
@@ -558,7 +561,7 @@ class MateriaalGebruik(BaseAnalysis):
         
     def analyze(self):
         """Voer de analyse uit en return resultaten."""
-        df = self.get_data()
+        df = self.load_data()
         
         if df.empty:
             return {}

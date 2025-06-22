@@ -199,11 +199,14 @@ def write_calculation_log(num_records: int = 100):
     # Genereer data
     data = generate_calculation_log_data(num_records)
     
-    # Bepaal pad naar exports folder
-    base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    output_path = os.path.join(base_dir, 'exports', 'calculation_log.csv')
+    # Bepaal het juiste pad
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    base_dir = os.path.dirname(os.path.dirname(current_dir))
     
-    # Maak exports folder als die niet bestaat
+    # Nieuwe pad structuur
+    output_path = os.path.join(base_dir, 'exports', 'berekeningen', 'calculation_log.csv')
+    
+    # Maak directory aan als die niet bestaat
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     
     # Schrijf naar CSV

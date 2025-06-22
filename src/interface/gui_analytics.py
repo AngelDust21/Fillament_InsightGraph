@@ -130,7 +130,7 @@ class AnalyticsGUI(tk.Frame):
         
         tk.Label(
             info_frame,
-            text="master_calculations.csv",
+                            text="producten/master_calculations.csv",
             font=("Arial", 10, "bold"),
             bg=self.dashboard_colors['sidebar_bg'],
             fg=self.dashboard_colors['text_light'],

@@ -13,6 +13,36 @@ git push -u origin master
 # - Of je moet een Personal Access Token gebruiken
 # - Zie: https://docs.github.com/en/authentication
 
+# PROJECT UP-TO-DATE HOUDEN
+# ==========================
+
+# 3. Haal de nieuwste versie van GitHub op (PULL)
+git pull origin master
+
+# Als er conflicten zijn, los ze op en commit daarna:
+git add .
+git commit -m "Conflicten opgelost"
+
+# Alternatief: Fetch en merge apart
+git fetch origin
+git merge origin/master
+
+# Force pull (WAARSCHUWING: dit overschrijft je lokale changes!)
+git reset --hard origin/master
+
+# DAGELIJKSE WORKFLOW
+# ===================
+
+# Stap 1: Altijd eerst pullen voordat je begint te werken
+git pull origin master
+
+# Stap 2: Je changes maken en committen
+git add .
+git commit -m "Beschrijving van je changes"
+
+# Stap 3: Pushen naar GitHub
+git push origin master
+
 # Extra commando's die handig kunnen zijn:
 
 # Check je remote repositories
@@ -28,4 +58,12 @@ git remote remove origin
 git status
 
 # Laatste commits bekijken
-git log --oneline -5 
+git log --oneline -5
+
+# Kijk hoeveel commits je achterloopt
+git status -uno
+
+# OPLOSSEN VAN JE HUIDIGE SITUATIE
+# =================================
+# Je bent momenteel 4 commits achter. Gebruik dit commando:
+git pull origin master 

@@ -299,4 +299,8 @@ timestamp,weight,material,material_cost,variable_cost,total_cost,sell_price,marg
 2025-10-06T08:15:00,135.0,TPU 90A,3.24,33.21,36.45,134.99,270.0,98.54,False,True,False,Monday,8,October,2025,Motorcycle Grip Cover,202510060001,True
 2025-10-13T13:45:00,36.0,TPU 95A,0.86,8.86,9.72,35.99,270.2,26.27,False,True,False,Monday,13,October,2025,Flexibele Verbinding,202510130001,True
 2025-10-20T10:30:00,92.0,TPU 90A,2.21,22.63,24.84,91.99,270.0,67.15,False,True,False,Monday,10,October,2025,VR Headset Padding,202510200001,True
-2025-10-27T14:15:00,54.0,TPU 95A,1.30,13.28,14.58,53.99,270.1,39.41,False,True,False,Monday,14,October,2025,Industrial Gasket,202510270001,True
+2025-06-22T18:28:02.778584,885.0,PLA Basic,12.38,374.0,386.38,649.42,68.1,263.04,False,False,False,Sunday,18,June,2025,Schoenen pla,202506220302,True
+2025-06-22T19:48:14.273839,12.0,PLA Basic,0.17,79.47,79.64,135.43,70.1,55.8,False,False,False,Sunday,19,June,2025,,,False
+2025-06-22T19:48:14.290382,12.0,PLA Basic,0.17,79.47,79.64,135.43,70.1,55.8,False,False,False,Sunday,19,June,2025,,,False
+2025-06-22T19:48:14.381477,120.0,PLA Basic,1.68,794.7,796.38,1354.35,70.1,557.97,False,False,False,Sunday,19,June,2025,,,False
+2025-06-22T19:48:14.397266,120.0,PLA Basic,1.68,794.7,796.38,1354.35,70.1,557.97,False,False,False,Sunday,19,June,2025,,,False
